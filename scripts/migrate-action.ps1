@@ -1,13 +1,11 @@
 ﻿# Применение или откат миграций через golang-migrate (Windows).
 # Вызывается из Makefile: make migrate-action action=<команда>
-#
-# Типичные значения action: up, down
-# Переменные POSTGRES_* берутся из .env (Make экспортирует их в окружение).
-# Хост todoapp-postgres — имя сервиса в docker-compose сети.
 
 param (
     [string]$action
 )
+
+. "$PSScriptRoot/_common.ps1"
 
 if ([string]::IsNullOrWhiteSpace($action)) {
     Write-Error "Отсутствует необходимый параметр action. Пример: make migrate-action action=up"

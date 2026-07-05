@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
 # Создание новой SQL-миграции через golang-migrate (Linux/macOS).
 # Вызывается из Makefile: make migrate-create seq=<имя>
-#
-# Параметр seq — суффикс файлов, например init → 000001_init.up.sql
-# Образ todoapp-postgres-migrate монтирует ./migrations в /migrations.
 
 set -euo pipefail
+
+source "$(dirname "${BASH_SOURCE[0]}")/_common.sh"
 
 seq="${1:-}"
 if [[ -z "$seq" ]]; then
@@ -13,7 +12,7 @@ if [[ -z "$seq" ]]; then
     exit 1
 fi
 
-mkdir -p migrations
+mkdir -p "${PROJECT_ROOT}/migrations"
 
 docker compose run --rm todoapp-postgres-migrate \
     create \
