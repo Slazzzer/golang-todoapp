@@ -13,12 +13,15 @@
 #
 # Примеры:
 #   make env-up                      # поднять Postgres
+#   make env-down                    # остановить Postgres
 #   make migrate-create seq=init     # создать пару файлов миграции
 #   make migrate-up                  # применить миграции
 #   make migrate-down                # откатить последнюю миграцию
+#   make migrate-action action=up VERSION=1 # применить конкретную миграцию
 #   make env-cleanup                 # остановить compose и удалить out/pgdata
 #   make env-port-forward            # запустить port-forwarder для доступа к Postgres из контейнера в локальную сеть
 #   make env-port-close              # остановить port-forwarder и закрыть доступ к Postgres из контейнера в локальную сеть
+#   make todoapp-run                 # запустить Go-приложение локально
 #
 # На Windows логика в scripts/*.ps1, на Unix — в scripts/*.sh.
 # Makefile только выбирает нужный раннер и передаёт параметры.
@@ -29,7 +32,8 @@ export
 
 .PHONY: env-up env-down env-cleanup \
 	env-port-forwarder env-port-close \
-	migrate-create migrate-up migrate-down migrate-action
+	migrate-create migrate-up migrate-down migrate-action \
+	todoapp-run
 
 # --- Кросс-платформенные настройки ---
 
@@ -67,9 +71,9 @@ endif
 env-port-forward:
 	@docker compose up -d port-forwarder
 
-# Остановить port-forwarder и закрыть доступ к Postgres из контейнера в локальную сеть
+# Остановить только port-forwarder (Postgres и сеть compose не трогаем).
 env-port-close:
-	@docker compose down port-forwarder
+	@docker compose rm -sf port-forwarder
 
 # --- Миграции (образ migrate/migrate) ---
 
@@ -97,4 +101,14 @@ ifeq ($(OS),Windows_NT)
 	@$(RUN_SCRIPT) scripts/migrate-action.ps1 -action "$(action)"
 else
 	@$(RUN_SCRIPT) scripts/migrate-action.sh "$(action)"
+endif
+
+# Запуск Go-приложения локально.
+# POSTGRES_HOST=localhost задаётся в scripts/todoapp-run.{ps1,sh} — приложение
+# подключается к Postgres на хосте (нужны make env-up + make env-port-forward).
+todoapp-run:
+ifeq ($(OS),Windows_NT)
+	@$(RUN_SCRIPT) scripts/todoapp-run.ps1
+else
+	@$(RUN_SCRIPT) scripts/todoapp-run.sh
 endif
