@@ -8,10 +8,14 @@
 
 set -euo pipefail
 
+source "$(dirname "${BASH_SOURCE[0]}")/_common.sh"
+
+pgdata="${PROJECT_ROOT}/out/pgdata"
+
 read -r -p 'Очистить все volume-файлы окружения? Опасность потери данных! [y/N] ' ans
 if [[ "$ans" =~ ^[yY]$ ]]; then
     docker compose down
-    rm -rf out/pgdata
+    rm -rf "$pgdata"
     echo 'Файлы окружения успешно очищены!'
 else
     echo 'Очистка окружения отменена!'

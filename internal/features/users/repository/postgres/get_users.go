@@ -18,7 +18,7 @@ func (r *UsersRepository) GetUsers(
 	query := `SELECT user_id, user_version, user_full_name, user_phone_number
 		FROM todoapp.users
 		ORDER BY user_id ASC
-		LIMIT $1 OFFSET $2`
+		LIMIT $1 OFFSET $2;`
 
 	rows, err := r.pool.Query(ctx, query, limit, offset)
 	if err != nil {

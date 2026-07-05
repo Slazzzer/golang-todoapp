@@ -24,6 +24,7 @@
 #   make todoapp-run                 # запустить Go-приложение локально
 #
 # На Windows логика в scripts/*.ps1, на Unix — в scripts/*.sh.
+# PROJECT_ROOT экспортируется Make и обязателен для всех скриптов.
 # Makefile только выбирает нужный раннер и передаёт параметры.
 # =============================================================================
 
@@ -53,27 +54,27 @@ endif
 
 # Поднять контейнер Postgres в фоне.
 env-up:
-	@docker compose up -d todoapp-postgres
+	@docker compose --project-directory "$(PROJECT_ROOT)" up -d todoapp-postgres
 
 # Остановить и удалить контейнеры compose-проекта.
 env-down:
-	@docker compose down
+	@docker compose --project-directory "$(PROJECT_ROOT)" down
 
 # Интерактивная очистка: остановка compose + удаление каталога out/pgdata.
 env-cleanup:
 ifeq ($(OS),Windows_NT)
-	@$(RUN_SCRIPT) scripts/env-cleanup.ps1
+	@$(RUN_SCRIPT) "$(PROJECT_ROOT)/scripts/env-cleanup.ps1"
 else
-	@$(RUN_SCRIPT) scripts/env-cleanup.sh
+	@$(RUN_SCRIPT) "$(PROJECT_ROOT)/scripts/env-cleanup.sh"
 endif
 
 # Проброс Postgres на хост
 env-port-forward:
-	@docker compose up -d port-forwarder
+	@docker compose --project-directory "$(PROJECT_ROOT)" up -d port-forwarder
 
 # Остановить только port-forwarder (Postgres и сеть compose не трогаем).
 env-port-close:
-	@docker compose rm -sf port-forwarder
+	@docker compose --project-directory "$(PROJECT_ROOT)" rm -sf port-forwarder
 
 # --- Миграции (образ migrate/migrate) ---
 
@@ -81,9 +82,9 @@ env-port-close:
 # Параметр seq обязателен: make migrate-create seq=add_users
 migrate-create:
 ifeq ($(OS),Windows_NT)
-	@$(RUN_SCRIPT) scripts/migrate-create.ps1 -seq "$(seq)"
+	@$(RUN_SCRIPT) "$(PROJECT_ROOT)/scripts/migrate-create.ps1" -seq "$(seq)"
 else
-	@$(RUN_SCRIPT) scripts/migrate-create.sh "$(seq)"
+	@$(RUN_SCRIPT) "$(PROJECT_ROOT)/scripts/migrate-create.sh" "$(seq)"
 endif
 
 # Применить все неприменённые миграции.
@@ -98,9 +99,9 @@ migrate-down:
 # Пример: make migrate-action action=force VERSION=1
 migrate-action:
 ifeq ($(OS),Windows_NT)
-	@$(RUN_SCRIPT) scripts/migrate-action.ps1 -action "$(action)"
+	@$(RUN_SCRIPT) "$(PROJECT_ROOT)/scripts/migrate-action.ps1" -action "$(action)"
 else
-	@$(RUN_SCRIPT) scripts/migrate-action.sh "$(action)"
+	@$(RUN_SCRIPT) "$(PROJECT_ROOT)/scripts/migrate-action.sh" "$(action)"
 endif
 
 # Запуск Go-приложения локально.
@@ -108,7 +109,7 @@ endif
 # подключается к Postgres на хосте (нужны make env-up + make env-port-forward).
 todoapp-run:
 ifeq ($(OS),Windows_NT)
-	@$(RUN_SCRIPT) scripts/todoapp-run.ps1
+	@$(RUN_SCRIPT) "$(PROJECT_ROOT)/scripts/todoapp-run.ps1"
 else
-	@$(RUN_SCRIPT) scripts/todoapp-run.sh
+	@$(RUN_SCRIPT) "$(PROJECT_ROOT)/scripts/todoapp-run.sh"
 endif

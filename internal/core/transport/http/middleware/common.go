@@ -1,14 +1,12 @@
 package core_http_middleware
 
 import (
-	"context"
 	"net/http"
 	"time"
 
 	core_logger "github.com/Slazzzer/golang-todoapp/internal/core/logger"
 	core_http_response "github.com/Slazzzer/golang-todoapp/internal/core/transport/http/response"
 	"github.com/google/uuid"
-	"go.uber.org/zap"
 )
 
 const requestIDHeader = "X-Request-ID"
@@ -29,17 +27,17 @@ func RequestID() Middleware {
 	}
 }
 
-func Logger(log *core_logger.Logger) Middleware {
+func Logger(log core_logger.Logger) Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			requestID := r.Header.Get(requestIDHeader)
 
 			l := log.With(
-				zap.String("request_id", requestID),
-				zap.String("url", r.URL.String()),
+				core_logger.String("request_id", requestID),
+				core_logger.String("url", r.URL.String()),
 			)
 
-			ctx := context.WithValue(r.Context(), "log", l)
+			ctx := core_logger.ContextWithLogger(r.Context(), l)
 
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
@@ -76,17 +74,34 @@ func Trace() Middleware {
 
 			log.Debug(
 				">>> incoming HTTP request",
-				zap.String("http_method", r.Method),
-				zap.Time("time", before.UTC()),
+				core_logger.String("http_method", r.Method),
+				core_logger.Time("time", before.UTC()),
 			)
+
+			defer func() {
+				log.Debug(
+					"<<< done HTTP request",
+					core_logger.Int("status_code", rw.GetStatusCode()),
+					core_logger.Duration("latency", time.Since(before)),
+				)
+			}()
 
 			next.ServeHTTP(rw, r)
+		})
+	}
+}
 
-			log.Debug(
-				"<<< done HTTP request",
-				zap.Int("status_code", rw.GetStatusCode()),
-				zap.Duration("latency", time.Since(before)),
-			)
+// Dummy — демонстрационный middleware: логирует вход/выход в цепочку до/после handler.
+func Dummy() Middleware {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			log := core_logger.FromContext(r.Context())
+
+			log.Debug("[Dummy] before handler")
+
+			next.ServeHTTP(w, r)
+
+			log.Debug("[Dummy] after handler")
 		})
 	}
 }

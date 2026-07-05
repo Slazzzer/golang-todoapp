@@ -2,12 +2,11 @@ package users_postgres_repository
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/Slazzzer/golang-todoapp/internal/core/domain"
 	core_errors "github.com/Slazzzer/golang-todoapp/internal/core/errors"
-	"github.com/jackc/pgx/v5"
+	core_postgres_pool "github.com/Slazzzer/golang-todoapp/internal/core/repository/postgres/pool"
 )
 
 func (r *UsersRepository) PatchUser(
@@ -25,7 +24,7 @@ func (r *UsersRepository) PatchUser(
 		    user_version = user_version + 1
 		WHERE user_id = $3
 		  AND user_version = $4
-		RETURNING user_id, user_version, user_full_name, user_phone_number
+		RETURNING user_id, user_version, user_full_name, user_phone_number;
 	`
 
 	row := r.pool.QueryRow(
@@ -45,7 +44,7 @@ func (r *UsersRepository) PatchUser(
 		&userModel.UserPhoneNumber,
 	)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+		if core_postgres_pool.IsErrNoRows(err) {
 			return domain.User{}, fmt.Errorf(
 				"user with id='%d' concurrency accessed: %w",
 				id,

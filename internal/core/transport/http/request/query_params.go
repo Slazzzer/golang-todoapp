@@ -1,4 +1,4 @@
-package core_http_utils
+package core_http_request
 
 import (
 	"fmt"
@@ -16,8 +16,10 @@ func GetIntQueryParam(r *http.Request, key string) (*int, error) {
 
 	val, err := strconv.Atoi(param)
 	if err != nil {
-		return nil, fmt.Errorf("param='%s' by key='%s' is not a valid integer: %v: %w",
-			param, key, err, core_errors.ErrInvalidArgument)
+		return nil, fmt.Errorf(
+			"param='%s' by key='%s' is not a valid integer: %v: %w",
+			param, key, err, core_errors.ErrInvalidArgument,
+		)
 	}
 
 	return &val, nil

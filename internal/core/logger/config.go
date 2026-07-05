@@ -7,7 +7,9 @@ import (
 )
 
 type Config struct {
-	Level  string `envconfig:"LEVEL"  required:"true"`
+	// Level — необязателен: по умолчанию DEBUG (удобно для локальной разработки).
+	// В prod задайте LOGGER_LEVEL=INFO или WARN явно в .env.
+	Level  string `envconfig:"LEVEL" default:"DEBUG"`
 	Folder string `envconfig:"FOLDER" required:"true"`
 }
 

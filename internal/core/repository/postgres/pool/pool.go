@@ -2,61 +2,42 @@ package core_postgres_pool
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"time"
-
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+// ErrNoRows — строка не найдена (аналог sql.ErrNoRows).
+var ErrNoRows = errors.New("no rows in result set")
+
+func IsErrNoRows(err error) bool {
+	return errors.Is(err, ErrNoRows)
+}
+
+// Row — одна строка результата запроса.
+type Row interface {
+	Scan(dest ...any) error
+}
+
+// Rows — итератор по строкам результата запроса.
+type Rows interface {
+	Next() bool
+	Scan(dest ...any) error
+	Close()
+	Err() error
+}
+
+// ExecResult — результат INSERT/UPDATE/DELETE.
+type ExecResult interface {
+	RowsAffected() int64
+}
+
+// Pool — абстракция над пулом соединений к PostgreSQL.
+// Не зависит от конкретной драйверной библиотеки.
 type Pool interface {
-	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
-	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
-	Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error)
+	Query(ctx context.Context, sql string, args ...any) (Rows, error)
+	QueryRow(ctx context.Context, sql string, args ...any) Row
+	Exec(ctx context.Context, sql string, args ...any) (ExecResult, error)
 	Close()
 
 	OpTimeout() time.Duration
-}
-
-type ConnectionPool struct {
-	*pgxpool.Pool
-	opTimeout time.Duration
-}
-
-func NewConnectionPool(
-	ctx context.Context,
-	config Config,
-) (*ConnectionPool, error) {
-	connectionString := fmt.Sprintf(
-		"postgres://%s:%s@%s:%s/%s?sslmode=disable",
-		config.User,
-		config.Password,
-		config.Host,
-		config.Port,
-		config.Database,
-	)
-
-	pgxconfig, err := pgxpool.ParseConfig(connectionString)
-	if err != nil {
-		return nil, fmt.Errorf("parse pgx config: %w", err)
-	}
-
-	pool, err := pgxpool.NewWithConfig(ctx, pgxconfig)
-	if err != nil {
-		return nil, fmt.Errorf("create pgx pool: %w", err)
-	}
-
-	if err := pool.Ping(ctx); err != nil {
-		return nil, fmt.Errorf("ping pgx pool: %w", err)
-	}
-
-	return &ConnectionPool{
-		Pool:      pool,
-		opTimeout: config.Timeout,
-	}, nil
-}
-
-func (p *ConnectionPool) OpTimeout() time.Duration {
-	return p.opTimeout
 }

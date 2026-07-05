@@ -14,7 +14,6 @@ import (
 	users_postgres_repository "github.com/Slazzzer/golang-todoapp/internal/features/users/repository/postgres"
 	users_service "github.com/Slazzzer/golang-todoapp/internal/features/users/service"
 	users_transport_http "github.com/Slazzzer/golang-todoapp/internal/features/users/transport/http"
-	"go.uber.org/zap"
 )
 
 func main() {
@@ -39,11 +38,11 @@ func main() {
 		core_postgres_pool.NewConfigMust(),
 	)
 	if err != nil {
-		logger.Fatal("failed to init postgres connection pool: ", zap.Error(err))
+		logger.Fatal("failed to init postgres connection pool: ", core_logger.Error(err))
 	}
 	defer pool.Close()
 
-	logger.Debug("Initializing feature", zap.String("feature", "users"))
+	logger.Debug("Initializing feature", core_logger.String("feature", "users"))
 
 	usersRepository := users_postgres_repository.NewUsersRepository(pool)
 	usersService := users_service.NewUsersService(usersRepository)
@@ -54,18 +53,27 @@ func main() {
 	httpServer := core_http_server.NewHTTPServer(
 		core_http_server.NewConfigMust(),
 		logger,
+		// Порядок: RequestID → Logger → Dummy → Trace → Panic → handler
 		core_http_middleware.RequestID(),
 		core_http_middleware.Logger(logger),
-		core_http_middleware.Panic(),
+		core_http_middleware.Dummy(),
 		core_http_middleware.Trace(),
+		core_http_middleware.Panic(),
 	)
 
-	apiVersionRouter := core_http_server.NewAPIVersionRouter(core_http_server.APIVersionV1)
-	apiVersionRouter.RegisterRoutes(usersTransportHTTP.Routes()...)
+	usersRoutes := usersTransportHTTP.Routes()
 
-	httpServer.RegisterAPIRouters(apiVersionRouter)
+	for _, version := range []core_http_server.APIVersion{
+		core_http_server.APIVersionV1,
+		core_http_server.APIVersionV2,
+		core_http_server.APIVersionV3,
+	} {
+		router := core_http_server.NewAPIVersionRouter(version)
+		router.RegisterRoutes(usersRoutes...)
+		httpServer.RegisterAPIRouters(router)
+	}
 
 	if err := httpServer.Run(ctx); err != nil {
-		logger.Error("HTTP transport run error: ", zap.Error(err))
+		logger.Error("HTTP transport run error: ", core_logger.Error(err))
 	}
 }

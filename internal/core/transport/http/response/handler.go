@@ -8,15 +8,14 @@ import (
 
 	core_errors "github.com/Slazzzer/golang-todoapp/internal/core/errors"
 	core_logger "github.com/Slazzzer/golang-todoapp/internal/core/logger"
-	"go.uber.org/zap"
 )
 
 type HTTPResponseHandler struct {
-	log *core_logger.Logger
+	log core_logger.Logger
 	rw  http.ResponseWriter
 }
 
-func NewHTTPResponseHandler(log *core_logger.Logger, rw http.ResponseWriter) *HTTPResponseHandler {
+func NewHTTPResponseHandler(log core_logger.Logger, rw http.ResponseWriter) *HTTPResponseHandler {
 	return &HTTPResponseHandler{log: log, rw: rw}
 }
 
@@ -26,7 +25,7 @@ func (h *HTTPResponseHandler) JSONResponse(
 ) {
 	h.rw.WriteHeader(statusCode)
 	if err := json.NewEncoder(h.rw).Encode(responseBody); err != nil {
-		h.log.Error("write HTTP response", zap.Error(err))
+		h.log.Error("write HTTP response", core_logger.Error(err))
 	}
 }
 
@@ -37,7 +36,7 @@ func (h *HTTPResponseHandler) NoContentResponse() {
 func (h *HTTPResponseHandler) ErrorResponse(err error, msg string) {
 	var (
 		statusCode int
-		logFunc    func(msg string, fields ...zap.Field)
+		logFunc    func(msg string, fields ...core_logger.Field)
 	)
 
 	switch {
@@ -58,7 +57,7 @@ func (h *HTTPResponseHandler) ErrorResponse(err error, msg string) {
 		logFunc = h.log.Error
 	}
 
-	logFunc(msg, zap.Error(err))
+	logFunc(msg, core_logger.Error(err))
 
 	h.errorResponse(statusCode, err, msg)
 }
@@ -67,7 +66,7 @@ func (h *HTTPResponseHandler) PanicResponse(p any, msg string) {
 	statusCode := http.StatusInternalServerError
 	err := fmt.Errorf("Unexpected panic: %v", p)
 
-	h.log.Error(msg, zap.Error(err))
+	h.log.Error(msg, core_logger.Error(err))
 
 	h.errorResponse(statusCode, err, msg)
 }

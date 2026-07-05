@@ -1,12 +1,10 @@
 #!/usr/bin/env bash
 # Запуск Go-приложения локально (Linux/macOS).
 # Вызывается из Makefile: make todoapp-run
-#
-# LOGGER_FOLDER — путь зависит от PROJECT_ROOT (экспортируется Make).
-# POSTGRES_HOST — хост БД при локальном запуске (приложение с хоста, Postgres в Docker).
-# Остальные переменные (LOGGER_LEVEL, HTTP_*, POSTGRES_USER/...) — из .env.
 
 set -euo pipefail
+
+source "$(dirname "${BASH_SOURCE[0]}")/_common.sh"
 
 export LOGGER_FOLDER="${PROJECT_ROOT}/out/logs"
 export POSTGRES_HOST=localhost
@@ -15,4 +13,4 @@ if [[ -n "${POSTGRES_HOST_PORT:-}" ]]; then
 fi
 
 go mod tidy
-go run cmd/todoapp/main.go
+go run "${PROJECT_ROOT}/cmd/todoapp/main.go"

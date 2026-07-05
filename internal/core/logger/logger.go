@@ -1,80 +1,30 @@
 package core_logger
 
-import (
-	"context"
-	"fmt"
-	"os"
-	"path/filepath"
-	"time"
+import "context"
 
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
-)
-
-type Logger struct {
-	*zap.Logger
-
-	file *os.File
+// Logger — абстракция над логгером приложения.
+// Не зависит от конкретной библиотеки (zap, slog и т.д.).
+type Logger interface {
+	Debug(msg string, fields ...Field)
+	Warn(msg string, fields ...Field)
+	Error(msg string, fields ...Field)
+	Fatal(msg string, fields ...Field)
+	With(fields ...Field) Logger
+	Close()
 }
 
-func FromContext(ctx context.Context) *Logger {
-	log, ok := ctx.Value("log").(*Logger)
+type contextKey struct{}
+
+var loggerKey contextKey
+
+func ContextWithLogger(ctx context.Context, log Logger) context.Context {
+	return context.WithValue(ctx, loggerKey, log)
+}
+
+func FromContext(ctx context.Context) Logger {
+	log, ok := ctx.Value(loggerKey).(Logger)
 	if !ok {
 		panic("logger not found in context")
 	}
 	return log
-}
-
-func NewLogger(config Config) (*Logger, error) {
-	zapLvl := zap.NewAtomicLevelAt(zap.InfoLevel)
-	if err := zapLvl.UnmarshalText([]byte(config.Level)); err != nil {
-		return nil, fmt.Errorf("unmarshal log level: %w", err)
-	}
-
-	if err := os.MkdirAll(config.Folder, 0755); err != nil {
-		return nil, fmt.Errorf("mkdir log folder: %w", err)
-	}
-
-	timestamp := time.Now().UTC().Format("2006-01-02T15-04-05.00000")
-	logFilePath := filepath.Join(config.Folder, fmt.Sprintf("%s.log", timestamp))
-
-	logFile, err := os.OpenFile(logFilePath, os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		return nil, fmt.Errorf("open log file: %w", err)
-	}
-
-	zapConfig := zap.NewDevelopmentEncoderConfig()
-	zapConfig.EncodeTime = zapcore.TimeEncoderOfLayout("2006-01-02T15:04:05.000000")
-
-	// Консоль: человекочитаемый формат с цветами (как zap development на macOS).
-	consoleEncoder := zapcore.NewConsoleEncoder(zapConfig)
-
-	// Файл: тот же формат, но без ANSI-цветов — иначе в out/logs будут escape-коды.
-	fileConfig := zapConfig
-	fileConfig.EncodeLevel = zapcore.CapitalLevelEncoder
-	fileEncoder := zapcore.NewConsoleEncoder(fileConfig)
-
-	core := zapcore.NewTee(
-		zapcore.NewCore(consoleEncoder, zapcore.AddSync(os.Stdout), zapLvl),
-		zapcore.NewCore(fileEncoder, zapcore.AddSync(logFile), zapLvl),
-	)
-
-	zapLogger := zap.New(core, zap.AddCaller())
-	return &Logger{
-		Logger: zapLogger,
-		file:   logFile,
-	}, nil
-}
-
-func (l *Logger) With(field ...zap.Field) *Logger {
-	return &Logger{
-		Logger: l.Logger.With(field...),
-		file:   l.file,
-	}
-}
-
-func (l *Logger) Close() {
-	if err := l.file.Close(); err != nil {
-		fmt.Println("failed to close application logger file:", err)
-	}
 }
