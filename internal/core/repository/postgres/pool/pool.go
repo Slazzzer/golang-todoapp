@@ -2,16 +2,8 @@ package core_postgres_pool
 
 import (
 	"context"
-	"errors"
 	"time"
 )
-
-// ErrNoRows — строка не найдена (аналог sql.ErrNoRows).
-var ErrNoRows = errors.New("no rows in result set")
-
-func IsErrNoRows(err error) bool {
-	return errors.Is(err, ErrNoRows)
-}
 
 // Row — одна строка результата запроса.
 type Row interface {
