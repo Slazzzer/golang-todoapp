@@ -22,6 +22,7 @@
 #   make env-port-forward            # запустить port-forwarder для доступа к Postgres из контейнера в локальную сеть
 #   make env-port-close              # остановить port-forwarder и закрыть доступ к Postgres из контейнера в локальную сеть
 #   make todoapp-run                 # запустить Go-приложение локально
+#   make logs-cleanup                # удалить все лог-файлы из out/logs
 #
 # На Windows логика в scripts/*.ps1, на Unix — в scripts/*.sh.
 # PROJECT_ROOT экспортируется Make и обязателен для всех скриптов.
@@ -34,7 +35,7 @@ export
 .PHONY: env-up env-down env-cleanup \
 	env-port-forwarder env-port-close \
 	migrate-create migrate-up migrate-down migrate-action \
-	todoapp-run
+	todoapp-run logs-cleanup
 
 # --- Кросс-платформенные настройки ---
 
@@ -112,4 +113,12 @@ ifeq ($(OS),Windows_NT)
 	@$(RUN_SCRIPT) "$(PROJECT_ROOT)/scripts/todoapp-run.ps1"
 else
 	@$(RUN_SCRIPT) "$(PROJECT_ROOT)/scripts/todoapp-run.sh"
+endif
+
+# Удалить все *.log из out/logs (с подтверждением).
+logs-cleanup:
+ifeq ($(OS),Windows_NT)
+	@$(RUN_SCRIPT) "$(PROJECT_ROOT)/scripts/logs-cleanup.ps1"
+else
+	@$(RUN_SCRIPT) "$(PROJECT_ROOT)/scripts/logs-cleanup.sh"
 endif

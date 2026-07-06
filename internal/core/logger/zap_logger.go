@@ -33,9 +33,8 @@ func NewLogger(config Config) (Logger, error) {
 		return nil, fmt.Errorf("open log file: %w", err)
 	}
 
-	encoderConfig := newEncoderConfig()
-	consoleEncoder := zapcore.NewConsoleEncoder(encoderConfig)
-	fileEncoder := zapcore.NewConsoleEncoder(encoderConfig)
+	consoleEncoder := zapcore.NewConsoleEncoder(newConsoleEncoderConfig())
+	fileEncoder := zapcore.NewConsoleEncoder(newFileEncoderConfig())
 
 	core := zapcore.NewTee(
 		zapcore.NewCore(consoleEncoder, zapcore.AddSync(os.Stdout), zapLvl),

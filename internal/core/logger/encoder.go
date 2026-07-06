@@ -11,13 +11,24 @@ import (
 
 const (
 	levelWidth  = 5
-	callerWidth = 28
-	consoleSep  = "  "
+	consoleSep  = " "
 )
 
 func bracketedTimeEncoder(t time.Time, enc zapcore.PrimitiveArrayEncoder) {
 	formatted := t.Format("2006-01-02T15:04:05.000000")
 	enc.AppendString(fmt.Sprintf("[==%s==]", formatted))
+}
+
+func shortCallerEncoder(caller zapcore.EntryCaller, enc zapcore.PrimitiveArrayEncoder) {
+	enc.AppendString(caller.TrimmedPath())
+}
+
+func paddedLevelEncoder(level zapcore.Level, enc zapcore.PrimitiveArrayEncoder) {
+	label := level.CapitalString()
+	if len(label) < levelWidth {
+		label += strings.Repeat(" ", levelWidth-len(label))
+	}
+	enc.AppendString(label)
 }
 
 func paddedColorLevelEncoder(level zapcore.Level, enc zapcore.PrimitiveArrayEncoder) {
@@ -45,19 +56,22 @@ func colorizeLevel(label string, level zapcore.Level) string {
 	}
 }
 
-func paddedShortCallerEncoder(caller zapcore.EntryCaller, enc zapcore.PrimitiveArrayEncoder) {
-	s := caller.TrimmedPath()
-	if len(s) > callerWidth {
-		s = s[len(s)-callerWidth:]
-	}
-	enc.AppendString(fmt.Sprintf("%-*s", callerWidth, s))
-}
-
-func newEncoderConfig() zapcore.EncoderConfig {
+func baseEncoderConfig() zapcore.EncoderConfig {
 	cfg := zap.NewDevelopmentEncoderConfig()
 	cfg.EncodeTime = bracketedTimeEncoder
-	cfg.EncodeLevel = paddedColorLevelEncoder
-	cfg.EncodeCaller = paddedShortCallerEncoder
+	cfg.EncodeCaller = shortCallerEncoder
 	cfg.ConsoleSeparator = consoleSep
+	return cfg
+}
+
+func newConsoleEncoderConfig() zapcore.EncoderConfig {
+	cfg := baseEncoderConfig()
+	cfg.EncodeLevel = paddedColorLevelEncoder
+	return cfg
+}
+
+func newFileEncoderConfig() zapcore.EncoderConfig {
+	cfg := baseEncoderConfig()
+	cfg.EncodeLevel = paddedLevelEncoder
 	return cfg
 }
