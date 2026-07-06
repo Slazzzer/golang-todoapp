@@ -8,6 +8,7 @@ import (
 	"syscall"
 	"time"
 
+	core_config "github.com/Slazzzer/golang-todoapp/internal/core/config"
 	core_logger "github.com/Slazzzer/golang-todoapp/internal/core/logger"
 	core_postgres_pool_pgx "github.com/Slazzzer/golang-todoapp/internal/core/repository/postgres/pool/pgx"
 	core_http_middleware "github.com/Slazzzer/golang-todoapp/internal/core/transport/http/middleware"
@@ -20,13 +21,9 @@ import (
 	users_transport_http "github.com/Slazzzer/golang-todoapp/internal/features/users/transport/http"
 )
 
-var (
-	timeZone = time.UTC
-)
-
 func main() {
-
-	time.Local = timeZone
+	cfg := core_config.NewConfigMust()
+	time.Local = cfg.Timezone
 
 	ctx, cancel := signal.NotifyContext(
 		context.Background(),
@@ -41,7 +38,7 @@ func main() {
 	}
 	defer logger.Close()
 
-	logger.Debug("application timezone", core_logger.String("timezone", timeZone.String()))
+	logger.Debug("application timezone", core_logger.String("timezone", cfg.Timezone.String()))
 
 	logger.Debug("Initializing postgres connection pool...")
 	pool, err := core_postgres_pool_pgx.NewConnectionPool(
