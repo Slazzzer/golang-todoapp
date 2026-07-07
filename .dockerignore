@@ -1,0 +1,12 @@
+.git
+.gitignore
+out/
+.env
+.env.*
+!.env.example
+*.log
+.vscode/
+.cursor/
+**/*_test.go
+**/*.md
+terminals/
