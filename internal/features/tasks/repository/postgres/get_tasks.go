@@ -10,8 +10,8 @@ import (
 func (r *TasksRepository) GetTasks(
 	ctx context.Context,
 	userID *int,
-	limit *int,
-	offset *int,
+	limit int,
+	offset int,
 ) ([]domain.Task, error) {
 	ctx, cancel := context.WithTimeout(ctx, r.pool.OpTimeout())
 	defer cancel()
@@ -37,7 +37,7 @@ func (r *TasksRepository) GetTasks(
 
 	if userID != nil {
 		query = fmt.Sprintf(query, "WHERE author_user_id = $3")
-		args = append(args, userID)
+		args = append(args, *userID)
 	} else {
 		query = fmt.Sprintf(query, "")
 	}
