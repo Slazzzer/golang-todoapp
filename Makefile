@@ -23,6 +23,9 @@
 #   make env-port-close              # остановить port-forwarder и закрыть доступ к Postgres из контейнера в локальную сеть
 #   make todoapp-run                 # запустить Go-приложение локально
 #   make logs-cleanup                # удалить все лог-файлы из out/logs
+#   make todoapp-deploy              # собрать образ и поднять контейнер todoapp
+#   make todoapp-undeploy            # остановить и удалить контейнер todoapp
+#   make ps                          # статус контейнеров compose-проекта
 #
 # На Windows логика в scripts/*.ps1, на Unix — в scripts/*.sh.
 # PROJECT_ROOT экспортируется Make и обязателен для всех скриптов.
@@ -33,9 +36,10 @@ include .env
 export
 
 .PHONY: env-up env-down env-cleanup \
-	env-port-forwarder env-port-close \
+	env-port-forward env-port-close \
 	migrate-create migrate-up migrate-down migrate-action \
-	todoapp-run logs-cleanup
+	todoapp-run logs-cleanup \
+	todoapp-deploy todoapp-undeploy ps
 
 # --- Кросс-платформенные настройки ---
 
@@ -121,4 +125,28 @@ ifeq ($(OS),Windows_NT)
 	@$(RUN_SCRIPT) "$(PROJECT_ROOT)/scripts/logs-cleanup.ps1"
 else
 	@$(RUN_SCRIPT) "$(PROJECT_ROOT)/scripts/logs-cleanup.sh"
+endif
+
+# Собрать образ и поднять контейнер todoapp в Docker.
+todoapp-deploy:
+ifeq ($(OS),Windows_NT)
+	@$(RUN_SCRIPT) "$(PROJECT_ROOT)/scripts/todoapp-deploy.ps1"
+else
+	@$(RUN_SCRIPT) "$(PROJECT_ROOT)/scripts/todoapp-deploy.sh"
+endif
+
+# Остановить и удалить только контейнер todoapp.
+todoapp-undeploy:
+ifeq ($(OS),Windows_NT)
+	@$(RUN_SCRIPT) "$(PROJECT_ROOT)/scripts/todoapp-undeploy.ps1"
+else
+	@$(RUN_SCRIPT) "$(PROJECT_ROOT)/scripts/todoapp-undeploy.sh"
+endif
+
+# Статус контейнеров compose-проекта.
+ps:
+ifeq ($(OS),Windows_NT)
+	@$(RUN_SCRIPT) "$(PROJECT_ROOT)/scripts/compose-ps.ps1"
+else
+	@$(RUN_SCRIPT) "$(PROJECT_ROOT)/scripts/compose-ps.sh"
 endif

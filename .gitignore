@@ -1,2 +1,18 @@
 .env
-out
+out/
+
+# Go
+*.exe
+*.test
+*.out
+coverage.out
+coverage.html
+
+# IDE
+.idea/
+*.swp
+*~
+
+# OS
+.DS_Store
+Thumbs.db
