@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/Slazzzer/golang-todoapp/internal/core/domain"
-	core_errors "github.com/Slazzzer/golang-todoapp/internal/core/errors"
+	core_pagination "github.com/Slazzzer/golang-todoapp/internal/core/pagination"
 )
 
 func (s *TasksService) GetTasks(
@@ -14,21 +14,12 @@ func (s *TasksService) GetTasks(
 	limit *int,
 	offset *int,
 ) ([]domain.Task, error) {
-	if limit != nil && *limit <= 0 {
-		return nil, fmt.Errorf(
-			"limit must be greater than 0: %w",
-			core_errors.ErrInvalidArgument,
-		)
+	resolvedLimit, resolvedOffset, err := core_pagination.Resolve(limit, offset)
+	if err != nil {
+		return nil, fmt.Errorf("resolve pagination: %w", err)
 	}
 
-	if offset != nil && *offset < 0 {
-		return nil, fmt.Errorf(
-			"offset must be non-negative: %w",
-			core_errors.ErrInvalidArgument,
-		)
-	}
-
-	tasks, err := s.tasksRepository.GetTasks(ctx, userID, limit, offset)
+	tasks, err := s.tasksRepository.GetTasks(ctx, userID, resolvedLimit, resolvedOffset)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get tasks: %w", err)
 	}

@@ -10,26 +10,22 @@ import (
 	"github.com/Slazzzer/golang-todoapp/internal/core/domain"
 )
 
-func (r *StatisticsRepository) GetTasksStatistics(
+func (r *StatisticsRepository) GetStatistics(
 	ctx context.Context,
 	userID *int,
 	fromDate *time.Time,
 	toDate *time.Time,
-) ([]domain.Task, error) {
+) (domain.Statistics, error) {
 	ctx, cancel := context.WithTimeout(ctx, r.pool.OpTimeout())
 	defer cancel()
 
 	var queryBuilder strings.Builder
 	queryBuilder.WriteString(`
 		SELECT
-			task_id,
-			task_version,
-			task_title,
-			task_description,
-			task_completed,
-			task_created_at,
-			task_completed_at,
-			author_user_id
+			COUNT(*)::int,
+			COUNT(*) FILTER (WHERE task_completed)::int,
+			AVG(EXTRACT(EPOCH FROM (task_completed_at - task_created_at)))
+				FILTER (WHERE task_completed AND task_completed_at IS NOT NULL)
 		FROM todoapp.tasks
 	`)
 
@@ -56,36 +52,35 @@ func (r *StatisticsRepository) GetTasksStatistics(
 		queryBuilder.WriteString(strings.Join(conditions, " AND "))
 	}
 
-	queryBuilder.WriteString(" ORDER BY task_id ASC;")
+	queryBuilder.WriteString(";")
 
-	rows, err := r.pool.Query(ctx, queryBuilder.String(), args...)
-	if err != nil {
-		return nil, fmt.Errorf("failed to query tasks: %w", err)
-	}
-	defer rows.Close()
+	var (
+		tasksCreated   int
+		tasksCompleted int
+		avgSeconds     *float64
+	)
 
-	var taskModels []TaskModel
-
-	for rows.Next() {
-		var taskModel TaskModel
-		err := rows.Scan(
-			&taskModel.ID,
-			&taskModel.Version,
-			&taskModel.Title,
-			&taskModel.Description,
-			&taskModel.Completed,
-			&taskModel.CreatedAt,
-			&taskModel.CompletedAt,
-			&taskModel.AuthorUserID,
-		)
-		if err != nil {
-			return nil, fmt.Errorf("failed to scan task model: %w", err)
-		}
-		taskModels = append(taskModels, taskModel)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("failed to iterate over tasks: %w", err)
+	row := r.pool.QueryRow(ctx, queryBuilder.String(), args...)
+	if err := row.Scan(&tasksCreated, &tasksCompleted, &avgSeconds); err != nil {
+		return domain.Statistics{}, fmt.Errorf("scan statistics: %w", err)
 	}
 
-	return taskDomainsFromModels(taskModels), nil
+	if tasksCreated == 0 {
+		return domain.NewStatistics(0, 0, nil, nil), nil
+	}
+
+	completedRate := float64(tasksCompleted) / float64(tasksCreated) * 100
+
+	var avgCompletionTime *time.Duration
+	if avgSeconds != nil && *avgSeconds > 0 {
+		avg := time.Duration(*avgSeconds * float64(time.Second))
+		avgCompletionTime = &avg
+	}
+
+	return domain.NewStatistics(
+		tasksCreated,
+		tasksCompleted,
+		&completedRate,
+		avgCompletionTime,
+	), nil
 }
