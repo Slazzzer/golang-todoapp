@@ -13,7 +13,7 @@
 #
 # Примеры:
 #   make env-up                      # поднять Postgres
-#   make env-down                    # остановить Postgres
+#   make env-down                    # остановить и удалить контейнеры compose-проекта
 #   make migrate-create seq=init     # создать пару файлов миграции
 #   make migrate-up                  # применить миграции
 #   make migrate-down                # откатить последнюю миграцию

@@ -15,6 +15,11 @@ type HTTPResponseHandler struct {
 	rw  http.ResponseWriter
 }
 
+type errorBody struct {
+	Message string `json:"message"`
+	Code    string `json:"code,omitempty"`
+}
+
 func NewHTTPResponseHandler(log core_logger.Logger, rw http.ResponseWriter) *HTTPResponseHandler {
 	return &HTTPResponseHandler{log: log, rw: rw}
 }
@@ -59,23 +64,39 @@ func (h *HTTPResponseHandler) ErrorResponse(err error, msg string) {
 
 	logFunc(msg, core_logger.Error(err))
 
-	h.errorResponse(statusCode, err, msg)
+	h.writeErrorResponse(statusCode, err, msg)
 }
 
 func (h *HTTPResponseHandler) PanicResponse(p any, msg string) {
-	statusCode := http.StatusInternalServerError
-	err := fmt.Errorf("Unexpected panic: %v", p)
+	err := fmt.Errorf("unexpected panic: %v", p)
 
 	h.log.Error(msg, core_logger.Error(err))
 
-	h.errorResponse(statusCode, err, msg)
+	h.writeErrorResponse(http.StatusInternalServerError, nil, "internal server error")
 }
 
-func (h *HTTPResponseHandler) errorResponse(statusCode int, err error, msg string) {
-	response := map[string]string{
-		"message": msg,
-		"error":   err.Error(),
+func (h *HTTPResponseHandler) writeErrorResponse(statusCode int, err error, msg string) {
+	body := errorBody{Message: msg}
+
+	if statusCode >= http.StatusInternalServerError {
+		body.Message = "internal server error"
+		body.Code = ""
+	} else if err != nil {
+		body.Code = errorCode(err)
 	}
 
-	h.JSONResponse(response, statusCode)
+	h.JSONResponse(body, statusCode)
+}
+
+func errorCode(err error) string {
+	switch {
+	case errors.Is(err, core_errors.ErrInvalidArgument):
+		return "invalid_argument"
+	case errors.Is(err, core_errors.ErrNotFound):
+		return "not_found"
+	case errors.Is(err, core_errors.ErrConflict):
+		return "conflict"
+	default:
+		return ""
+	}
 }
