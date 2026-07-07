@@ -25,6 +25,7 @@
 #   make logs-cleanup                # удалить все лог-файлы из out/logs
 #   make todoapp-deploy              # собрать образ и поднять контейнер todoapp
 #   make todoapp-undeploy            # остановить и удалить контейнер todoapp
+#   make deploy-up                   # postgres → migrate → todoapp
 #   make ps                          # статус контейнеров compose-проекта
 #
 # На Windows логика в scripts/*.ps1, на Unix — в scripts/*.sh.
@@ -39,7 +40,7 @@ export
 	env-port-forward env-port-close \
 	migrate-create migrate-up migrate-down migrate-action \
 	todoapp-run logs-cleanup \
-	todoapp-deploy todoapp-undeploy ps
+	todoapp-deploy todoapp-undeploy deploy-up ps
 
 # --- Кросс-платформенные настройки ---
 
@@ -149,4 +150,12 @@ ifeq ($(OS),Windows_NT)
 	@$(RUN_SCRIPT) "$(PROJECT_ROOT)/scripts/compose-ps.ps1"
 else
 	@$(RUN_SCRIPT) "$(PROJECT_ROOT)/scripts/compose-ps.sh"
+endif
+
+# Полный деплой: Postgres → миграции → todoapp.
+deploy-up:
+ifeq ($(OS),Windows_NT)
+	@$(RUN_SCRIPT) "$(PROJECT_ROOT)/scripts/deploy-up.ps1"
+else
+	@$(RUN_SCRIPT) "$(PROJECT_ROOT)/scripts/deploy-up.sh"
 endif

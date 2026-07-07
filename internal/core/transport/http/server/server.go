@@ -30,6 +30,14 @@ func NewHTTPServer(
 	}
 }
 
+func (s *HTTPServer) Mux() *http.ServeMux {
+	return s.mux
+}
+
+func (s *HTTPServer) Config() Config {
+	return s.config
+}
+
 func (s *HTTPServer) RegisterAPIRouters(routers ...*APIVersionRouter) {
 	for _, router := range routers {
 		prefix := "/api/" + string(router.apiVersion)
@@ -43,8 +51,12 @@ func (s *HTTPServer) Run(ctx context.Context) error {
 	mux := core_http_middleware.ChainMiddleware(s.mux, s.middleware...)
 
 	server := &http.Server{
-		Addr:    s.config.Addr,
-		Handler: mux,
+		Addr:              s.config.Addr,
+		Handler:           mux,
+		ReadHeaderTimeout: s.config.ReadHeaderTimeout,
+		ReadTimeout:       s.config.ReadTimeout,
+		WriteTimeout:      s.config.WriteTimeout,
+		IdleTimeout:       s.config.IdleTimeout,
 	}
 
 	ch := make(chan error, 1)
