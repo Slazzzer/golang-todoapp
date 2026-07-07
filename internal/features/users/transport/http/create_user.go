@@ -10,7 +10,7 @@ import (
 )
 
 type CreateUserRequest struct {
-	FullName    string  `json:"full_name" validate:"required,min=3,max=255"`
+	FullName    string  `json:"full_name" validate:"required,min=3,max=100"`
 	PhoneNumber *string `json:"phone_number" validate:"omitempty,min=10,max=15,startswith=+"`
 }
 

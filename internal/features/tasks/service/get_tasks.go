@@ -21,9 +21,9 @@ func (s *TasksService) GetTasks(
 		)
 	}
 
-	if offset != nil && *offset <= 0 {
+	if offset != nil && *offset < 0 {
 		return nil, fmt.Errorf(
-			"offset must be greater than 0: %w",
+			"offset must be non-negative: %w",
 			core_errors.ErrInvalidArgument,
 		)
 	}
