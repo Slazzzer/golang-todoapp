@@ -12,7 +12,12 @@ if ([string]::IsNullOrWhiteSpace($action)) {
     exit 1
 }
 
-$database = "postgres://$($env:POSTGRES_USER):$($env:POSTGRES_PASSWORD)@todoapp-postgres:5432/$($env:POSTGRES_DB)?sslmode=disable"
+$sslMode = $env:POSTGRES_SSLMODE
+if ([string]::IsNullOrWhiteSpace($sslMode)) {
+    $sslMode = 'disable'
+}
+
+$database = "postgres://$($env:POSTGRES_USER):$($env:POSTGRES_PASSWORD)@todoapp-postgres:5432/$($env:POSTGRES_DB)?sslmode=$sslMode"
 
 docker compose run --rm todoapp-postgres-migrate `
     -path /migrations `

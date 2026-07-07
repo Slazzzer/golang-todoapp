@@ -29,6 +29,7 @@ type Pool interface {
 	Query(ctx context.Context, sql string, args ...any) (Rows, error)
 	QueryRow(ctx context.Context, sql string, args ...any) Row
 	Exec(ctx context.Context, sql string, args ...any) (ExecResult, error)
+	Ping(ctx context.Context) error
 	Close()
 
 	OpTimeout() time.Duration

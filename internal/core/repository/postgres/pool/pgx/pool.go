@@ -18,14 +18,7 @@ func NewConnectionPool(
 	ctx context.Context,
 	config Config,
 ) (*ConnectionPool, error) {
-	connectionString := fmt.Sprintf(
-		"postgres://%s:%s@%s:%s/%s?sslmode=disable",
-		config.User,
-		config.Password,
-		config.Host,
-		config.Port,
-		config.Database,
-	)
+	connectionString := buildConnectionString(config)
 
 	pgxconfig, err := pgxpool.ParseConfig(connectionString)
 	if err != nil {
@@ -68,6 +61,10 @@ func (p *ConnectionPool) Exec(ctx context.Context, sql string, args ...any) (cor
 	}
 
 	return pgxExecResult{tag: tag}, nil
+}
+
+func (p *ConnectionPool) Ping(ctx context.Context) error {
+	return mapError(p.pool.Ping(ctx))
 }
 
 func (p *ConnectionPool) Close() {

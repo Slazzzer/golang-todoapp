@@ -12,7 +12,9 @@ if [[ -z "$action" ]]; then
     exit 1
 fi
 
-database="postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@todoapp-postgres:5432/${POSTGRES_DB}?sslmode=disable"
+ssl_mode="${POSTGRES_SSLMODE:-disable}"
+
+database="postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@todoapp-postgres:5432/${POSTGRES_DB}?sslmode=${ssl_mode}"
 
 docker compose run --rm todoapp-postgres-migrate \
     -path /migrations \

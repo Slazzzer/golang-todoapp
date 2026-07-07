@@ -12,6 +12,7 @@ import (
 	core_logger "github.com/Slazzzer/golang-todoapp/internal/core/logger"
 	core_postgres_pool_pgx "github.com/Slazzzer/golang-todoapp/internal/core/repository/postgres/pool/pgx"
 	core_http_middleware "github.com/Slazzzer/golang-todoapp/internal/core/transport/http/middleware"
+	core_http_probes "github.com/Slazzzer/golang-todoapp/internal/core/transport/http/probes"
 	core_http_server "github.com/Slazzzer/golang-todoapp/internal/core/transport/http/server"
 	statistics_postgres_repository "github.com/Slazzzer/golang-todoapp/internal/features/statistics/repository/postgres"
 	statistics_service "github.com/Slazzzer/golang-todoapp/internal/features/statistics/service"
@@ -70,16 +71,19 @@ func main() {
 
 	logger.Debug("Initializing HTTP server...")
 
+	httpConfig := core_http_server.NewConfigMust()
 	httpServer := core_http_server.NewHTTPServer(
-		core_http_server.NewConfigMust(),
+		httpConfig,
 		logger,
-		// Порядок: RequestID → Logger → Dummy → Trace → Panic → handler
+		// Порядок: RequestID → Logger → LimitBody → Trace → Panic → handler
 		core_http_middleware.RequestID(),
 		core_http_middleware.Logger(logger),
-		core_http_middleware.Dummy(),
+		core_http_middleware.LimitBody(httpConfig.MaxBodyBytes),
 		core_http_middleware.Trace(),
 		core_http_middleware.Panic(),
 	)
+
+	core_http_probes.NewHandler(pool).Register(httpServer.Mux())
 
 	apiV1 := core_http_server.NewAPIVersionRouter(core_http_server.APIVersionV1)
 	apiV1.RegisterRoutes(usersTransportHTTP.Routes()...)

@@ -8,8 +8,13 @@ import (
 )
 
 type Config struct {
-	Addr            string        `envconfig:"ADDR"             required:"true"`
-	ShutdownTimeout time.Duration `envconfig:"SHUTDOWN_TIMEOUT" default:"30s"`
+	Addr              string        `envconfig:"ADDR"                required:"true"`
+	ShutdownTimeout   time.Duration `envconfig:"SHUTDOWN_TIMEOUT"    default:"30s"`
+	ReadHeaderTimeout time.Duration `envconfig:"READ_HEADER_TIMEOUT" default:"10s"`
+	ReadTimeout       time.Duration `envconfig:"READ_TIMEOUT"        default:"15s"`
+	WriteTimeout      time.Duration `envconfig:"WRITE_TIMEOUT"       default:"15s"`
+	IdleTimeout       time.Duration `envconfig:"IDLE_TIMEOUT"        default:"60s"`
+	MaxBodyBytes      int64         `envconfig:"MAX_BODY_BYTES"      default:"1048576"`
 }
 
 func NewConfig() (Config, error) {
@@ -25,7 +30,7 @@ func NewConfig() (Config, error) {
 func NewConfigMust() Config {
 	config, err := NewConfig()
 	if err != nil {
-		err = fmt.Errorf("get HTTP serverconfig: %w", err)
+		err = fmt.Errorf("get HTTP server config: %w", err)
 		panic(err)
 	}
 
