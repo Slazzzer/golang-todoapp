@@ -73,7 +73,7 @@ func getUserIDFromToQueryParams(r *http.Request) (*int, *time.Time, *time.Time, 
 		return nil, nil, nil, fmt.Errorf("failed to get from time from query params: %w", err)
 	}
 
-	to, err := core_http_request.GetDateFromQueryParam(r, toQueryParamKey)
+	to, err := core_http_request.GetDateToQueryParam(r, toQueryParamKey)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("failed to get to time from query params: %w", err)
 	}
