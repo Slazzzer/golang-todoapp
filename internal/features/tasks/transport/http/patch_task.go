@@ -11,10 +11,11 @@ import (
 	core_http_types "github.com/Slazzzer/golang-todoapp/internal/core/transport/http/types"
 )
 
+// PatchTaskRequest тело частичного обновления задачи.
 type PatchTaskRequest struct {
-	Title       core_http_types.Nullable[string] `json:"title"`
-	Description core_http_types.Nullable[string] `json:"description"`
-	Completed   core_http_types.Nullable[bool]   `json:"completed"`
+	Title       core_http_types.Nullable[string] `json:"title"`       // Новый заголовок (опционально)
+	Description core_http_types.Nullable[string] `json:"description"` // Новое описание (опционально)
+	Completed   core_http_types.Nullable[bool]   `json:"completed"`   // Статус выполнения (опционально)
 }
 
 func (r *PatchTaskRequest) Validate() error {
@@ -49,6 +50,21 @@ func (r *PatchTaskRequest) Validate() error {
 
 type PatchTaskUserResponse TaskDTOResponse
 
+// PatchTask обновляет задачу (только свою).
+//
+// @Summary      Изменить задачу
+// @Description  Частичное обновление. При completed=true автоматически проставляется completed_at.
+// @Tags         tasks
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path int true "ID задачи"
+// @Param        request body PatchTaskRequest true "Поля для обновления"
+// @Success      200 {object} PatchTaskUserResponse "Обновлённая задача"
+// @Failure      400 {object} map[string]string "Невалидные данные"
+// @Failure      401 {object} map[string]string "Не авторизован"
+// @Failure      403 {object} map[string]string "Доступ к чужой задаче запрещён"
+// @Router       /tasks/{id} [patch]
 func (h *TasksHTTPHandler) PatchTask(rw http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	log := core_logger.FromContext(ctx)

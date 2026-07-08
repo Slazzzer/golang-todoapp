@@ -12,9 +12,10 @@ import (
 	core_http_types "github.com/Slazzzer/golang-todoapp/internal/core/transport/http/types"
 )
 
+// PatchUserRequest тело частичного обновления профиля.
 type PatchUserRequest struct {
-	FullName    core_http_types.Nullable[string] `json:"full_name"`
-	PhoneNumber core_http_types.Nullable[string] `json:"phone_number"`
+	FullName    core_http_types.Nullable[string] `json:"full_name"`    // Новое полное имя (опционально)
+	PhoneNumber core_http_types.Nullable[string] `json:"phone_number"` // Новый телефон (опционально, null — удалить)
 }
 
 func (r *PatchUserRequest) Validate() error {
@@ -46,6 +47,21 @@ func (r *PatchUserRequest) Validate() error {
 
 type PatchUserResponse UserDTOResponse
 
+// PatchUser обновляет профиль текущего пользователя.
+//
+// @Summary      Изменить пользователя
+// @Description  Частичное обновление профиля. Доступ только к своему id.
+// @Tags         users
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path int true "ID пользователя"
+// @Param        request body PatchUserRequest true "Поля для обновления"
+// @Success      200 {object} PatchUserResponse "Обновлённый профиль"
+// @Failure      400 {object} map[string]string "Невалидные данные"
+// @Failure      401 {object} map[string]string "Не авторизован"
+// @Failure      403 {object} map[string]string "Доступ к чужому профилю запрещён"
+// @Router       /users/{id} [patch]
 func (h *UsersHTTPHandler) PatchUser(rw http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	log := core_logger.FromContext(ctx)

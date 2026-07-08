@@ -10,6 +10,19 @@ import (
 
 type GetTaskResponse TaskDTOResponse
 
+// GetTask возвращает задачу по id (только своя).
+//
+// @Summary      Получить задачу
+// @Description  Доступ только к своим задачам. Чужая задача — 403.
+// @Tags         tasks
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path int true "ID задачи"
+// @Success      200 {object} GetTaskResponse "Данные задачи"
+// @Failure      401 {object} map[string]string "Не авторизован"
+// @Failure      403 {object} map[string]string "Доступ к чужой задаче запрещён"
+// @Failure      404 {object} map[string]string "Задача не найдена"
+// @Router       /tasks/{id} [get]
 func (h *TasksHTTPHandler) GetTask(rw http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	log := core_logger.FromContext(ctx)

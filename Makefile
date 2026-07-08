@@ -30,6 +30,8 @@
 #   make cert-init                  # obtain Let's Encrypt certificate (after deploy-prod)
 #   make cert-renew                 # renew certificate and reload nginx
 #   make ps                          # статус контейнеров compose-проекта
+#   make swagger-pull                # скачать golang-образ и собрать swagger-контейнер
+#   make swagger-gen                 # сгенерировать docs/docs.go, swagger.json, swagger.yaml
 #
 # На Windows логика в scripts/*.ps1, на Unix — в scripts/*.sh.
 # PROJECT_ROOT экспортируется Make и обязателен для всех скриптов.
@@ -43,7 +45,8 @@ export
 	env-port-forward env-port-close \
 	migrate-create migrate-up migrate-down migrate-action \
 	todoapp-run logs-cleanup \
-	todoapp-deploy todoapp-undeploy deploy-up deploy-prod cert-init cert-renew ps
+	todoapp-deploy todoapp-undeploy deploy-up deploy-prod cert-init cert-renew \
+	swagger-pull swagger-gen ps
 
 # --- Кросс-платформенные настройки ---
 
@@ -185,4 +188,20 @@ ifeq ($(OS),Windows_NT)
 	@$(RUN_SCRIPT) "$(PROJECT_ROOT)/scripts/cert-renew.ps1"
 else
 	@$(RUN_SCRIPT) "$(PROJECT_ROOT)/scripts/cert-renew.sh"
+endif
+
+# Скачать golang-образ и собрать локальный swagger-контейнер.
+swagger-pull:
+ifeq ($(OS),Windows_NT)
+	@$(RUN_SCRIPT) "$(PROJECT_ROOT)/scripts/swagger-pull.ps1"
+else
+	@$(RUN_SCRIPT) "$(PROJECT_ROOT)/scripts/swagger-pull.sh"
+endif
+
+# Сгенерировать Swagger-документацию в docs/.
+swagger-gen:
+ifeq ($(OS),Windows_NT)
+	@$(RUN_SCRIPT) "$(PROJECT_ROOT)/scripts/swagger-gen.ps1"
+else
+	@$(RUN_SCRIPT) "$(PROJECT_ROOT)/scripts/swagger-gen.sh"
 endif

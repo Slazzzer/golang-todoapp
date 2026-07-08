@@ -2,11 +2,12 @@ package users_transport_http
 
 import "github.com/Slazzzer/golang-todoapp/internal/core/domain"
 
+// UserDTOResponse данные пользователя в ответе API.
 type UserDTOResponse struct {
-	ID          int     `json:"id"`
-	Version     int     `json:"version"`
-	FullName    string  `json:"full_name"`
-	PhoneNumber *string `json:"phone_number"`
+	ID          int     `json:"id" example:"1"`                         // Идентификатор пользователя
+	Version     int     `json:"version" example:"1"`                  // Версия записи (для оптимистичной блокировки)
+	FullName    string  `json:"full_name" example:"Иван Иванов"`      // Полное имя
+	PhoneNumber *string `json:"phone_number" example:"+79991234567"` // Телефон или null
 }
 
 func UserDTOFromDomain(user domain.User) UserDTOResponse {
