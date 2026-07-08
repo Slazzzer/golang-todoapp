@@ -26,6 +26,9 @@
 #   make todoapp-deploy              # собрать образ и поднять контейнер todoapp
 #   make todoapp-undeploy            # остановить и удалить контейнер todoapp
 #   make deploy-up                   # postgres → migrate → todoapp
+#   make deploy-prod                # postgres → migrate → todoapp + nginx + certbot
+#   make cert-init                  # obtain Let's Encrypt certificate (after deploy-prod)
+#   make cert-renew                 # renew certificate and reload nginx
 #   make ps                          # статус контейнеров compose-проекта
 #
 # На Windows логика в scripts/*.ps1, на Unix — в scripts/*.sh.
@@ -40,7 +43,7 @@ export
 	env-port-forward env-port-close \
 	migrate-create migrate-up migrate-down migrate-action \
 	todoapp-run logs-cleanup \
-	todoapp-deploy todoapp-undeploy deploy-up ps
+	todoapp-deploy todoapp-undeploy deploy-up deploy-prod cert-init cert-renew ps
 
 # --- Кросс-платформенные настройки ---
 
@@ -158,4 +161,28 @@ ifeq ($(OS),Windows_NT)
 	@$(RUN_SCRIPT) "$(PROJECT_ROOT)/scripts/deploy-up.ps1"
 else
 	@$(RUN_SCRIPT) "$(PROJECT_ROOT)/scripts/deploy-up.sh"
+endif
+
+# Production: Postgres → миграции → todoapp + nginx (HTTPS) + certbot.
+deploy-prod:
+ifeq ($(OS),Windows_NT)
+	@$(RUN_SCRIPT) "$(PROJECT_ROOT)/scripts/deploy-prod.ps1"
+else
+	@$(RUN_SCRIPT) "$(PROJECT_ROOT)/scripts/deploy-prod.sh"
+endif
+
+# Первичное получение SSL-сертификата Let's Encrypt (нужны NGINX_DOMAIN и CERTBOT_EMAIL).
+cert-init:
+ifeq ($(OS),Windows_NT)
+	@$(RUN_SCRIPT) "$(PROJECT_ROOT)/scripts/cert-init.ps1"
+else
+	@$(RUN_SCRIPT) "$(PROJECT_ROOT)/scripts/cert-init.sh"
+endif
+
+# Ручное обновление сертификата и перезагрузка nginx.
+cert-renew:
+ifeq ($(OS),Windows_NT)
+	@$(RUN_SCRIPT) "$(PROJECT_ROOT)/scripts/cert-renew.ps1"
+else
+	@$(RUN_SCRIPT) "$(PROJECT_ROOT)/scripts/cert-renew.sh"
 endif

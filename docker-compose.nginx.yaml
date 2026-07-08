@@ -1,0 +1,43 @@
+# Production overlay: nginx reverse proxy + Let's Encrypt (certbot).
+# Usage: docker compose -f docker-compose.yaml -f docker-compose.nginx.yaml up -d
+# Or:    make deploy-prod
+
+services:
+  todoapp:
+    ports: !reset []
+    expose:
+      - "5050"
+
+  nginx:
+    build:
+      context: ${PROJECT_ROOT}/deploy/nginx
+      dockerfile: Dockerfile
+    container_name: todoapp-nginx
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - NGINX_DOMAIN=${NGINX_DOMAIN}
+    volumes:
+      - certbot-www:/var/www/certbot:ro
+      - certbot-conf:/etc/letsencrypt:ro
+    depends_on:
+      todoapp:
+        condition: service_started
+    networks:
+      - default
+
+  certbot:
+    image: certbot/certbot:v4.0.0
+    profiles:
+      - certbot
+    volumes:
+      - certbot-www:/var/www/certbot
+      - certbot-conf:/etc/letsencrypt
+    # One-shot via: make cert-init / make cert-renew
+    # Auto-renew on host: crontab -e → 0 3 * * * cd /path/to/project && make cert-renew
+
+volumes:
+  certbot-www:
+  certbot-conf:
