@@ -57,6 +57,18 @@ func (h *HTTPResponseHandler) ErrorResponse(err error, msg string) {
 		statusCode = http.StatusConflict
 		logFunc = h.log.Warn
 
+	case errors.Is(err, core_errors.ErrUnauthorized):
+		statusCode = http.StatusUnauthorized
+		logFunc = h.log.Warn
+
+	case errors.Is(err, core_errors.ErrForbidden):
+		statusCode = http.StatusForbidden
+		logFunc = h.log.Warn
+
+	case errors.Is(err, core_errors.ErrTooManyRequests):
+		statusCode = http.StatusTooManyRequests
+		logFunc = h.log.Warn
+
 	default:
 		statusCode = http.StatusInternalServerError
 		logFunc = h.log.Error
@@ -96,6 +108,12 @@ func errorCode(err error) string {
 		return "not_found"
 	case errors.Is(err, core_errors.ErrConflict):
 		return "conflict"
+	case errors.Is(err, core_errors.ErrUnauthorized):
+		return "unauthorized"
+	case errors.Is(err, core_errors.ErrForbidden):
+		return "forbidden"
+	case errors.Is(err, core_errors.ErrTooManyRequests):
+		return "too_many_requests"
 	default:
 		return ""
 	}

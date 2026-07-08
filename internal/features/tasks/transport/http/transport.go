@@ -19,7 +19,6 @@ type TasksService interface {
 	) (domain.Task, error)
 	GetTasks(
 		ctx context.Context,
-		userID *int,
 		limit *int,
 		offset *int,
 	) ([]domain.Task, error)
