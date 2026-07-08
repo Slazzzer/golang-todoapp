@@ -8,12 +8,16 @@ import (
 	"syscall"
 	"time"
 
+	core_auth "github.com/Slazzzer/golang-todoapp/internal/core/auth"
 	core_config "github.com/Slazzzer/golang-todoapp/internal/core/config"
+	core_ratelimit "github.com/Slazzzer/golang-todoapp/internal/core/ratelimit"
 	core_logger "github.com/Slazzzer/golang-todoapp/internal/core/logger"
 	core_postgres_pool_pgx "github.com/Slazzzer/golang-todoapp/internal/core/repository/postgres/pool/pgx"
 	core_http_middleware "github.com/Slazzzer/golang-todoapp/internal/core/transport/http/middleware"
 	core_http_probes "github.com/Slazzzer/golang-todoapp/internal/core/transport/http/probes"
 	core_http_server "github.com/Slazzzer/golang-todoapp/internal/core/transport/http/server"
+	auth_service "github.com/Slazzzer/golang-todoapp/internal/features/auth/service"
+	auth_transport_http "github.com/Slazzzer/golang-todoapp/internal/features/auth/transport/http"
 	statistics_postgres_repository "github.com/Slazzzer/golang-todoapp/internal/features/statistics/repository/postgres"
 	statistics_service "github.com/Slazzzer/golang-todoapp/internal/features/statistics/service"
 	statistics_transport_http "github.com/Slazzzer/golang-todoapp/internal/features/statistics/transport/http"
@@ -59,6 +63,18 @@ func main() {
 	usersService := users_service.NewUsersService(usersRepository)
 	usersTransportHTTP := users_transport_http.NewUsersHTTPHandler(usersService)
 
+	tokenManager := core_auth.NewTokenManager(core_auth.NewConfigMust())
+	rateLimitConfig := core_ratelimit.NewConfigMust()
+	registerRateLimiter := core_ratelimit.NewLimiter(
+		rateLimitConfig.RegisterMax,
+		rateLimitConfig.RegisterWindow,
+	)
+	authService := auth_service.NewAuthService(usersService, tokenManager)
+	authTransportHTTP := auth_transport_http.NewAuthHTTPHandler(
+		authService,
+		core_http_middleware.RateLimit(registerRateLimiter),
+	)
+
 	logger.Debug("Initializing feature", core_logger.String("feature", "tasks"))
 	tasksRepository := tasks_postgres_repository.NewTasksRepository(pool)
 	tasksService := tasks_service.NewTasksService(tasksRepository)
@@ -86,6 +102,8 @@ func main() {
 	core_http_probes.NewHandler(pool).Register(httpServer.Mux())
 
 	apiV1 := core_http_server.NewAPIVersionRouter(core_http_server.APIVersionV1)
+	apiV1.Use(core_http_middleware.JWTAuth(tokenManager))
+	apiV1.RegisterRoutes(authTransportHTTP.Routes()...)
 	apiV1.RegisterRoutes(usersTransportHTTP.Routes()...)
 	apiV1.RegisterRoutes(tasksTransportHTTP.Routes()...)
 	apiV1.RegisterRoutes(statisticsTransportHTTP.Routes()...)

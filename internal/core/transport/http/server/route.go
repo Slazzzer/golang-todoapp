@@ -13,10 +13,15 @@ type Route struct {
 	Middleware []core_http_middleware.Middleware
 }
 
-func NewRoute(method, path string, handler http.HandlerFunc) Route {
+func NewRoute(
+	method, path string,
+	handler http.HandlerFunc,
+	middleware ...core_http_middleware.Middleware,
+) Route {
 	return Route{
-		Method:  method,
-		Path:    path,
-		Handler: handler,
+		Method:     method,
+		Path:       path,
+		Handler:    handler,
+		Middleware: middleware,
 	}
 }

@@ -16,16 +16,16 @@ func (h *TasksHTTPHandler) GetTasks(rw http.ResponseWriter, r *http.Request) {
 	log := core_logger.FromContext(ctx)
 	responseHandler := core_http_response.NewHTTPResponseHandler(log, rw)
 
-	userID, limit, offset, err := getUserIDAndLimitOffsetQueryParams(r)
+	limit, offset, err := getLimitOffsetQueryParams(r)
 	if err != nil {
 		responseHandler.ErrorResponse(
 			err,
-			"failed to get user id and limit offset query params",
+			"failed to get limit and offset query params",
 		)
 		return
 	}
 
-	tasksDomains, err := h.tasksService.GetTasks(ctx, userID, limit, offset)
+	tasksDomains, err := h.tasksService.GetTasks(ctx, limit, offset)
 	if err != nil {
 		responseHandler.ErrorResponse(
 			err,
@@ -38,28 +38,21 @@ func (h *TasksHTTPHandler) GetTasks(rw http.ResponseWriter, r *http.Request) {
 	responseHandler.JSONResponse(response, http.StatusOK)
 }
 
-func getUserIDAndLimitOffsetQueryParams(r *http.Request) (*int, *int, *int, error) {
-
+func getLimitOffsetQueryParams(r *http.Request) (*int, *int, error) {
 	const (
-		queryParamUserID = "user_id"
 		queryParamLimit  = "limit"
 		queryParamOffset = "offset"
 	)
 
-	userID, err := core_http_request.GetIntQueryParam(r, queryParamUserID)
-	if err != nil {
-		return nil, nil, nil, fmt.Errorf("failed to get user id query param: %w", err)
-	}
-
 	limit, err := core_http_request.GetIntQueryParam(r, queryParamLimit)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("failed to get limit query param: %w", err)
+		return nil, nil, fmt.Errorf("failed to get limit query param: %w", err)
 	}
 
 	offset, err := core_http_request.GetIntQueryParam(r, queryParamOffset)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("failed to get offset query param: %w", err)
+		return nil, nil, fmt.Errorf("failed to get offset query param: %w", err)
 	}
 
-	return userID, limit, offset, nil
+	return limit, offset, nil
 }

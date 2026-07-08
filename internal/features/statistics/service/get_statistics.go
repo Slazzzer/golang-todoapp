@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/Slazzzer/golang-todoapp/internal/core/domain"
+	core_auth "github.com/Slazzzer/golang-todoapp/internal/core/auth"
 	core_errors "github.com/Slazzzer/golang-todoapp/internal/core/errors"
 )
 
@@ -25,7 +26,19 @@ func (s *StatisticsService) GetStatistics(
 		}
 	}
 
-	statistics, err := s.statisticsRepository.GetStatistics(ctx, userID, fromDate, toDate)
+	requesterID, err := core_auth.UserIDFromContext(ctx)
+	if err != nil {
+		return domain.Statistics{}, fmt.Errorf("get requester id: %w", err)
+	}
+
+	if userID != nil && *userID != requesterID {
+		return domain.Statistics{}, fmt.Errorf(
+			"statistics for another user are forbidden: %w",
+			core_errors.ErrForbidden,
+		)
+	}
+
+	statistics, err := s.statisticsRepository.GetStatistics(ctx, &requesterID, fromDate, toDate)
 	if err != nil {
 		return domain.Statistics{}, fmt.Errorf(
 			"failed to get statistics from repository: %w",
