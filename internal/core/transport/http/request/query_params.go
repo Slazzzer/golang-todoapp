@@ -26,19 +26,43 @@ func GetIntQueryParam(r *http.Request, key string) (*int, error) {
 	return &val, nil
 }
 
+const dateLayout = "2006-01-02"
+
+// GetDateFromQueryParam парсит дату как начало календарного дня в time.Local
+// (main.go выставляет time.Local из TIME_ZONE).
 func GetDateFromQueryParam(r *http.Request, key string) (*time.Time, error) {
 	param := r.URL.Query().Get(key)
 	if param == "" {
 		return nil, nil
 	}
 
-	layout := "2006-01-02"
-	date, err := time.Parse(layout, param)
+	date, err := time.ParseInLocation(dateLayout, param, time.Local)
 	if err != nil {
 		return nil, fmt.Errorf(
 			"param='%s' by key='%s' is not a valid date: %v: %w",
 			param, key, err, core_errors.ErrInvalidArgument,
 		)
 	}
+
 	return &date, nil
+}
+
+// GetDateToQueryParam парсит верхнюю границу диапазона: начало следующего дня
+// в time.Local (для условия task_created_at < to).
+func GetDateToQueryParam(r *http.Request, key string) (*time.Time, error) {
+	param := r.URL.Query().Get(key)
+	if param == "" {
+		return nil, nil
+	}
+
+	date, err := time.ParseInLocation(dateLayout, param, time.Local)
+	if err != nil {
+		return nil, fmt.Errorf(
+			"param='%s' by key='%s' is not a valid date: %v: %w",
+			param, key, err, core_errors.ErrInvalidArgument,
+		)
+	}
+
+	endExclusive := date.AddDate(0, 0, 1)
+	return &endExclusive, nil
 }

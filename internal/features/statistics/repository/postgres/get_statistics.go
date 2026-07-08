@@ -10,6 +10,12 @@ import (
 	"github.com/Slazzzer/golang-todoapp/internal/core/domain"
 )
 
+const completedDurationFilter = `
+	task_completed
+	AND task_completed_at IS NOT NULL
+	AND task_completed_at >= task_created_at
+`
+
 func (r *StatisticsRepository) GetStatistics(
 	ctx context.Context,
 	userID *int,
@@ -24,8 +30,9 @@ func (r *StatisticsRepository) GetStatistics(
 		SELECT
 			COUNT(*)::int,
 			COUNT(*) FILTER (WHERE task_completed)::int,
+			COUNT(*) FILTER (WHERE ` + completedDurationFilter + `)::int,
 			AVG(EXTRACT(EPOCH FROM (task_completed_at - task_created_at)))
-				FILTER (WHERE task_completed AND task_completed_at IS NOT NULL)
+				FILTER (WHERE ` + completedDurationFilter + `)
 		FROM todoapp.tasks
 	`)
 
@@ -55,13 +62,14 @@ func (r *StatisticsRepository) GetStatistics(
 	queryBuilder.WriteString(";")
 
 	var (
-		tasksCreated   int
-		tasksCompleted int
-		avgSeconds     *float64
+		tasksCreated        int
+		tasksCompleted      int
+		tasksWithDuration   int
+		avgSeconds          *float64
 	)
 
 	row := r.pool.QueryRow(ctx, queryBuilder.String(), args...)
-	if err := row.Scan(&tasksCreated, &tasksCompleted, &avgSeconds); err != nil {
+	if err := row.Scan(&tasksCreated, &tasksCompleted, &tasksWithDuration, &avgSeconds); err != nil {
 		return domain.Statistics{}, fmt.Errorf("scan statistics: %w", err)
 	}
 
@@ -72,8 +80,8 @@ func (r *StatisticsRepository) GetStatistics(
 	completedRate := float64(tasksCompleted) / float64(tasksCreated) * 100
 
 	var avgCompletionTime *time.Duration
-	if avgSeconds != nil && *avgSeconds > 0 {
-		avg := time.Duration(*avgSeconds * float64(time.Second))
+	if tasksWithDuration > 0 && avgSeconds != nil {
+		avg := time.Duration(int64(*avgSeconds * float64(time.Second)))
 		avgCompletionTime = &avg
 	}
 
