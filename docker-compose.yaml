@@ -33,7 +33,7 @@ services:
     volumes:
       - ${PROJECT_ROOT}/out/logs:/app/out/logs
     ports:
-      - "127.0.0.1:5050:5050"
+      - "${TODOAPP_PORT_BINDING:-127.0.0.1:5050:5050}"
     restart: always
 
   todoapp-postgres:
