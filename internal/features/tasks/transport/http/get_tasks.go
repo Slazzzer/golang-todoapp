@@ -11,6 +11,18 @@ import (
 
 type GetTasksResponse []TaskDTOResponse
 
+// GetTasks возвращает список задач текущего пользователя.
+//
+// @Summary      Список задач
+// @Description  Возвращает только задачи авторизованного пользователя. Поддерживает пагинацию limit/offset (по умолчанию limit=50, max=100).
+// @Tags         tasks
+// @Produce      json
+// @Security     BearerAuth
+// @Param        limit query int false "Размер страницы"
+// @Param        offset query int false "Смещение"
+// @Success      200 {array} TaskDTOResponse "Список задач"
+// @Failure      401 {object} map[string]string "Не авторизован"
+// @Router       /tasks [get]
 func (h *TasksHTTPHandler) GetTasks(rw http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	log := core_logger.FromContext(ctx)

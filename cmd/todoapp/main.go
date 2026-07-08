@@ -1,5 +1,18 @@
 package main
 
+// @title           Todoapp API
+// @version         1.0
+// @description     REST API для todo-приложения с JWT-авторизацией.
+// @description     Публичный маршрут: POST /auth/register. Все остальные эндпоинты /api/v1 требуют заголовок Authorization: Bearer &lt;token&gt;.
+// @description     Пользователь видит и изменяет только свои данные (профиль, задачи, статистику).
+// @host            localhost:5050
+// @BasePath        /api/v1
+//
+// @securityDefinitions.apikey BearerAuth
+// @in              header
+// @name            Authorization
+// @description     JWT-токен. Формат: Bearer &lt;token&gt;. Токен выдаётся при регистрации (POST /auth/register).
+
 import (
 	"context"
 	"fmt"
@@ -10,8 +23,8 @@ import (
 
 	core_auth "github.com/Slazzzer/golang-todoapp/internal/core/auth"
 	core_config "github.com/Slazzzer/golang-todoapp/internal/core/config"
-	core_ratelimit "github.com/Slazzzer/golang-todoapp/internal/core/ratelimit"
 	core_logger "github.com/Slazzzer/golang-todoapp/internal/core/logger"
+	core_ratelimit "github.com/Slazzzer/golang-todoapp/internal/core/ratelimit"
 	core_postgres_pool_pgx "github.com/Slazzzer/golang-todoapp/internal/core/repository/postgres/pool/pgx"
 	core_http_middleware "github.com/Slazzzer/golang-todoapp/internal/core/transport/http/middleware"
 	core_http_probes "github.com/Slazzzer/golang-todoapp/internal/core/transport/http/probes"
@@ -27,6 +40,8 @@ import (
 	users_postgres_repository "github.com/Slazzzer/golang-todoapp/internal/features/users/repository/postgres"
 	users_service "github.com/Slazzzer/golang-todoapp/internal/features/users/service"
 	users_transport_http "github.com/Slazzzer/golang-todoapp/internal/features/users/transport/http"
+
+	_ "github.com/Slazzzer/golang-todoapp/docs"
 )
 
 func main() {
@@ -91,7 +106,8 @@ func main() {
 	httpServer := core_http_server.NewHTTPServer(
 		httpConfig,
 		logger,
-		// Порядок: RequestID → Logger → LimitBody → Trace → Panic → handler
+		// Порядок: CORS → RequestID → Logger → LimitBody → Trace → Panic → handler
+		core_http_middleware.CORS(),
 		core_http_middleware.RequestID(),
 		core_http_middleware.Logger(logger),
 		core_http_middleware.LimitBody(httpConfig.MaxBodyBytes),
@@ -109,6 +125,8 @@ func main() {
 	apiV1.RegisterRoutes(statisticsTransportHTTP.Routes()...)
 
 	httpServer.RegisterAPIRouters(apiV1)
+
+	httpServer.RegisterSwaggerRouter()
 
 	if err := httpServer.Run(ctx); err != nil {
 		logger.Error("HTTP transport run error: ", core_logger.Error(err))

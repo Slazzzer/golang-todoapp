@@ -64,3 +64,12 @@ services:
     command: tcp-listen:5432,fork,reuseaddr tcp-connect:todoapp-postgres:5432
     ports:
       - "127.0.0.1:${POSTGRES_HOST_PORT}:5432"
+  
+  swagger:
+    build:
+      context: ${PROJECT_ROOT}/deploy/swagger
+      dockerfile: Dockerfile
+    image: golang-todoapp-swagger
+    volumes:
+      - ${PROJECT_ROOT}:/code
+    working_dir: /code

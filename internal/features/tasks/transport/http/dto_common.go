@@ -6,15 +6,16 @@ import (
 	"github.com/Slazzzer/golang-todoapp/internal/core/domain"
 )
 
+// TaskDTOResponse данные задачи в ответе API.
 type TaskDTOResponse struct {
-	ID           int        `json:"id"`
-	Version      int        `json:"version"`
-	Title        string     `json:"title"`
-	Description  *string    `json:"description"`
-	Completed    bool       `json:"completed"`
-	CreatedAt    time.Time  `json:"created_at"`
-	CompletedAt  *time.Time `json:"completed_at"`
-	AuthorUserID int        `json:"author_user_id"`
+	ID           int        `json:"id" example:"1"`                                    // Идентификатор задачи
+	Version      int        `json:"version" example:"1"`                               // Версия записи
+	Title        string     `json:"title" example:"Купить молоко"`                     // Заголовок
+	Description  *string    `json:"description" example:"2 литра"`                     // Описание или null
+	Completed    bool       `json:"completed" example:"false"`                         // Выполнена ли задача
+	CreatedAt    time.Time  `json:"created_at" example:"2026-07-08T12:00:00Z"`         // Дата создания
+	CompletedAt  *time.Time `json:"completed_at"`                                      // Дата завершения или null
+	AuthorUserID int        `json:"author_user_id" example:"1"`                        // ID автора (из JWT)
 }
 
 func taskDTOFromDomain(task domain.Task) TaskDTOResponse {
