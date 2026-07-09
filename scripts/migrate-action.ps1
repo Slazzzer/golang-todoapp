@@ -19,6 +19,9 @@ if ([string]::IsNullOrWhiteSpace($sslMode)) {
 
 $database = "postgres://$($env:POSTGRES_USER):$($env:POSTGRES_PASSWORD)@todoapp-postgres:5432/$($env:POSTGRES_DB)?sslmode=$sslMode"
 
+& "$PSScriptRoot/wait-for-postgres.ps1"
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
 docker compose run --rm todoapp-postgres-migrate `
     -path /migrations `
     -database $database `

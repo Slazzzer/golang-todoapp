@@ -16,6 +16,8 @@ ssl_mode="${POSTGRES_SSLMODE:-disable}"
 
 database="postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@todoapp-postgres:5432/${POSTGRES_DB}?sslmode=${ssl_mode}"
 
+bash "$(dirname "${BASH_SOURCE[0]}")/wait-for-postgres.sh"
+
 docker compose run --rm todoapp-postgres-migrate \
     -path /migrations \
     -database "$database" \
