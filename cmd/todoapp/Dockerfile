@@ -14,7 +14,8 @@ RUN apk add --no-cache ca-certificates
 
 WORKDIR /app
 COPY --from=builder /todoapp /app/todoapp
+COPY --from=builder app/public /app/public
 
-EXPOSE 5050
+ENV PROJECT_ROOT=/app
 
 CMD ["/app/todoapp"]

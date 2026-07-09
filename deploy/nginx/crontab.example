@@ -1,2 +1,0 @@
-# Example crontab entry for automatic certificate renewal (on the server):
-# 0 3 * * * cd /root/projects/golang-todoapp && make cert-renew >> /var/log/todoapp-cert-renew.log 2>&1

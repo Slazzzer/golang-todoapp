@@ -25,15 +25,11 @@ services:
       - LOGGER_LEVEL=${LOGGER_LEVEL}
       - TIME_ZONE=${TIME_ZONE}
       - LOGGER_FOLDER=/app/out/logs
-      - JWT_SECRET=${JWT_SECRET}
-      - JWT_TTL=${JWT_TTL:-720h}
-      - JWT_ISSUER=${JWT_ISSUER:-todoapp}
-      - RATE_LIMIT_REGISTER_MAX=${RATE_LIMIT_REGISTER_MAX:-30}
-      - RATE_LIMIT_REGISTER_WINDOW=${RATE_LIMIT_REGISTER_WINDOW:-1m}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:5050,http://127.0.0.1:5050,null,80.249.145.151,http://80.249.145.151:5050}
     volumes:
       - ${PROJECT_ROOT}/out/logs:/app/out/logs
     ports:
-      - "${TODOAPP_PORT_BINDING:-127.0.0.1:5050:5050}"
+      - "127.0.0.1:5050:5050"
     restart: always
 
   todoapp-postgres:
@@ -63,8 +59,8 @@ services:
     container_name: todoapp-postgres-port-forwarder
     command: tcp-listen:5432,fork,reuseaddr tcp-connect:todoapp-postgres:5432
     ports:
-      - "127.0.0.1:${POSTGRES_HOST_PORT}:5432"
-  
+      - "127.0.0.1:${POSTGRES_HOST_PORT:-5433}:5432"
+
   swagger:
     build:
       context: ${PROJECT_ROOT}/deploy/swagger

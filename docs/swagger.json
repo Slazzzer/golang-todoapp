@@ -1,7 +1,7 @@
 {
     "swagger": "2.0",
     "info": {
-        "description": "REST API для todo-приложения с JWT-авторизацией.\nПубличный маршрут: POST /auth/register. Все остальные эндпоинты /api/v1 требуют заголовок Authorization: Bearer \u0026lt;token\u0026gt;.\nПользователь видит и изменяет только свои данные (профиль, задачи, статистику).",
+        "description": "REST API для todo-приложения (задачи, пользователи, статистика).\nОткрытый API без авторизации: все эндпоинты доступны под /api/v1.",
         "title": "Todoapp API",
         "contact": {},
         "version": "1.0"
@@ -9,92 +9,6 @@
     "host": "localhost:5050",
     "basePath": "/api/v1",
     "paths": {
-        "/auth/me": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Возвращает профиль пользователя из JWT-токена. Удобная альтернатива GET /users/{id}, когда id неизвестен.",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "auth"
-                ],
-                "summary": "Текущий пользователь",
-                "responses": {
-                    "200": {
-                        "description": "Профиль текущего пользователя",
-                        "schema": {
-                            "$ref": "#/definitions/github_com_Slazzzer_golang-todoapp_internal_features_users_transport_http.UserDTOResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Токен отсутствует или невалиден",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/auth/register": {
-            "post": {
-                "description": "Публичный эндпоинт. Создаёт пользователя и возвращает JWT-токен (срок жизни задаётся JWT_TTL, по умолчанию 30 дней). Пароль не требуется.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "auth"
-                ],
-                "summary": "Регистрация пользователя",
-                "parameters": [
-                    {
-                        "description": "Данные для регистрации",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/internal_features_auth_transport_http.RegisterRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Пользователь создан, токен выдан",
-                        "schema": {
-                            "$ref": "#/definitions/internal_features_auth_transport_http.RegisterResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Невалидные данные",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "429": {
-                        "description": "Превышен лимит регистраций с одного IP",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            }
-        },
         "/health": {
             "get": {
                 "description": "Возвращает ok, если HTTP-сервер запущен. Не требует авторизации.",
@@ -143,12 +57,7 @@
         },
         "/statistics": {
             "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Агрегированная статистика по задачам авторизованного пользователя. Параметр user_id опционален и должен совпадать с id из JWT.",
+                "description": "Агрегированная статистика по задачам. Параметр user_id опционален: без него — по всем пользователям.",
                 "produces": [
                     "application/json"
                 ],
@@ -159,7 +68,7 @@
                 "parameters": [
                     {
                         "type": "integer",
-                        "description": "ID пользователя (должен совпадать с токеном)",
+                        "description": "Фильтр по пользователю",
                         "name": "user_id",
                         "in": "query"
                     },
@@ -191,36 +100,13 @@
                                 "type": "string"
                             }
                         }
-                    },
-                    "401": {
-                        "description": "Не авторизован",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "403": {
-                        "description": "Запрос статистики другого пользователя запрещён",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
                     }
                 }
             }
         },
         "/tasks": {
             "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Возвращает только задачи авторизованного пользователя. Поддерживает пагинацию limit/offset (по умолчанию limit=50, max=100).",
+                "description": "Возвращает задачи. Можно отфильтровать по user_id. Поддерживает пагинацию limit/offset (по умолчанию limit=50, max=100).",
                 "produces": [
                     "application/json"
                 ],
@@ -229,6 +115,12 @@
                 ],
                 "summary": "Список задач",
                 "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Фильтр по автору",
+                        "name": "user_id",
+                        "in": "query"
+                    },
                     {
                         "type": "integer",
                         "description": "Размер страницы",
@@ -252,8 +144,8 @@
                             }
                         }
                     },
-                    "401": {
-                        "description": "Не авторизован",
+                    "400": {
+                        "description": "Невалидные параметры",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -264,12 +156,7 @@
                 }
             },
             "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "author_user_id берётся из JWT автоматически, передавать в JSON не нужно.",
+                "description": "Создаёт новую задачу с указанным автором (author_user_id).",
                 "consumes": [
                     "application/json"
                 ],
@@ -306,27 +193,13 @@
                                 "type": "string"
                             }
                         }
-                    },
-                    "401": {
-                        "description": "Не авторизован",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
                     }
                 }
             }
         },
         "/tasks/{id}": {
             "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Доступ только к своим задачам. Чужая задача — 403.",
+                "description": "Возвращает задачу по её идентификатору.",
                 "produces": [
                     "application/json"
                 ],
@@ -350,24 +223,6 @@
                             "$ref": "#/definitions/internal_features_tasks_transport_http.GetTaskResponse"
                         }
                     },
-                    "401": {
-                        "description": "Не авторизован",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "403": {
-                        "description": "Доступ к чужой задаче запрещён",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
                     "404": {
                         "description": "Задача не найдена",
                         "schema": {
@@ -380,11 +235,6 @@
                 }
             },
             "delete": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
                 "tags": [
                     "tasks"
                 ],
@@ -402,17 +252,8 @@
                     "204": {
                         "description": "Задача удалена"
                     },
-                    "401": {
-                        "description": "Не авторизован",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "403": {
-                        "description": "Доступ к чужой задаче запрещён",
+                    "404": {
+                        "description": "Задача не найдена",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -423,11 +264,6 @@
                 }
             },
             "patch": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
                 "description": "Частичное обновление. При completed=true автоматически проставляется completed_at.",
                 "consumes": [
                     "application/json"
@@ -473,17 +309,95 @@
                             }
                         }
                     },
-                    "401": {
-                        "description": "Не авторизован",
+                    "404": {
+                        "description": "Задача не найдена",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
                                 "type": "string"
                             }
                         }
+                    }
+                }
+            }
+        },
+        "/users": {
+            "get": {
+                "description": "Возвращает всех пользователей. Поддерживает пагинацию limit/offset (по умолчанию limit=50, max=100).",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "Список пользователей",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Размер страницы",
+                        "name": "limit",
+                        "in": "query"
                     },
-                    "403": {
-                        "description": "Доступ к чужой задаче запрещён",
+                    {
+                        "type": "integer",
+                        "description": "Смещение",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Список пользователей",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/internal_features_users_transport_http.UserDTOResponse"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Невалидные параметры",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Регистрирует нового пользователя. Телефон опционален.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "Создать пользователя",
+                "parameters": [
+                    {
+                        "description": "Данные нового пользователя",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_features_users_transport_http.CreateUserRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Пользователь создан",
+                        "schema": {
+                            "$ref": "#/definitions/internal_features_users_transport_http.CreateUserResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Невалидные данные",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -496,12 +410,7 @@
         },
         "/users/{id}": {
             "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Доступ только к своему id. Запрос чужого id вернёт 403.",
+                "description": "Возвращает данные пользователя по его идентификатору.",
                 "produces": [
                     "application/json"
                 ],
@@ -525,24 +434,6 @@
                             "$ref": "#/definitions/internal_features_users_transport_http.GetUserResponse"
                         }
                     },
-                    "401": {
-                        "description": "Не авторизован",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "403": {
-                        "description": "Доступ к чужому профилю запрещён",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
                     "404": {
                         "description": "Пользователь не найден",
                         "schema": {
@@ -555,12 +446,7 @@
                 }
             },
             "delete": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Удаление своего аккаунта. Если есть связанные задачи, может вернуться 409.",
+                "description": "Удаляет пользователя по id. Если есть связанные задачи, может вернуться 409.",
                 "tags": [
                     "users"
                 ],
@@ -578,17 +464,8 @@
                     "204": {
                         "description": "Пользователь удалён"
                     },
-                    "401": {
-                        "description": "Не авторизован",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "403": {
-                        "description": "Доступ к чужому профилю запрещён",
+                    "404": {
+                        "description": "Пользователь не найден",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -608,12 +485,7 @@
                 }
             },
             "patch": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Частичное обновление профиля. Доступ только к своему id.",
+                "description": "Частичное обновление профиля пользователя.",
                 "consumes": [
                     "application/json"
                 ],
@@ -658,17 +530,8 @@
                             }
                         }
                     },
-                    "401": {
-                        "description": "Не авторизован",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "403": {
-                        "description": "Доступ к чужому профилю запрещён",
+                    "404": {
+                        "description": "Пользователь не найден",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -703,31 +566,6 @@
                 }
             }
         },
-        "github_com_Slazzzer_golang-todoapp_internal_features_users_transport_http.UserDTOResponse": {
-            "type": "object",
-            "properties": {
-                "full_name": {
-                    "description": "Полное имя",
-                    "type": "string",
-                    "example": "Иван Иванов"
-                },
-                "id": {
-                    "description": "Идентификатор пользователя",
-                    "type": "integer",
-                    "example": 1
-                },
-                "phone_number": {
-                    "description": "Телефон или null",
-                    "type": "string",
-                    "example": "+79991234567"
-                },
-                "version": {
-                    "description": "Версия записи (для оптимистичной блокировки)",
-                    "type": "integer",
-                    "example": 1
-                }
-            }
-        },
         "internal_core_transport_http_probes.ProbeStatusResponse": {
             "type": "object",
             "properties": {
@@ -738,53 +576,13 @@
                 }
             }
         },
-        "internal_features_auth_transport_http.RegisterRequest": {
-            "type": "object",
-            "required": [
-                "full_name"
-            ],
-            "properties": {
-                "full_name": {
-                    "description": "Полное имя (3–100 символов)",
-                    "type": "string",
-                    "maxLength": 100,
-                    "minLength": 3,
-                    "example": "Иван Иванов"
-                },
-                "phone_number": {
-                    "description": "Телефон в формате +XXXXXXXXXXX (опционально)",
-                    "type": "string",
-                    "maxLength": 15,
-                    "minLength": 10,
-                    "example": "+79991234567"
-                }
-            }
-        },
-        "internal_features_auth_transport_http.RegisterResponse": {
-            "type": "object",
-            "properties": {
-                "token": {
-                    "description": "JWT-токен для последующих запросов",
-                    "type": "string",
-                    "example": "eyJhbGciOiJIUzI1NiIs..."
-                },
-                "user": {
-                    "description": "Созданный пользователь",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/github_com_Slazzzer_golang-todoapp_internal_features_users_transport_http.UserDTOResponse"
-                        }
-                    ]
-                }
-            }
-        },
         "internal_features_statistics_transport_http.GetStatisticsResponse": {
             "type": "object",
             "properties": {
                 "task_completed_rate": {
-                    "description": "Доля завершённых (0–1) или null",
+                    "description": "Процент завершённых (0–100) или null",
                     "type": "number",
-                    "example": 0.7
+                    "example": 70
                 },
                 "tasks_average_completion_time": {
                     "description": "Среднее время выполнения или null",
@@ -806,9 +604,15 @@
         "internal_features_tasks_transport_http.CreateTaskRequest": {
             "type": "object",
             "required": [
+                "author_user_id",
                 "title"
             ],
             "properties": {
+                "author_user_id": {
+                    "description": "ID автора задачи",
+                    "type": "integer",
+                    "example": 1
+                },
                 "description": {
                     "description": "Описание (опционально)",
                     "type": "string",
@@ -1030,6 +834,53 @@
                 }
             }
         },
+        "internal_features_users_transport_http.CreateUserRequest": {
+            "type": "object",
+            "required": [
+                "full_name"
+            ],
+            "properties": {
+                "full_name": {
+                    "description": "Полное имя (3–100 символов)",
+                    "type": "string",
+                    "maxLength": 100,
+                    "minLength": 3,
+                    "example": "Иван Иванов"
+                },
+                "phone_number": {
+                    "description": "Телефон в формате +7... (опционально)",
+                    "type": "string",
+                    "maxLength": 15,
+                    "minLength": 10,
+                    "example": "+79991234567"
+                }
+            }
+        },
+        "internal_features_users_transport_http.CreateUserResponse": {
+            "type": "object",
+            "properties": {
+                "full_name": {
+                    "description": "Полное имя",
+                    "type": "string",
+                    "example": "Иван Иванов"
+                },
+                "id": {
+                    "description": "Идентификатор пользователя",
+                    "type": "integer",
+                    "example": 1
+                },
+                "phone_number": {
+                    "description": "Телефон или null",
+                    "type": "string",
+                    "example": "+79991234567"
+                },
+                "version": {
+                    "description": "Версия записи (для оптимистичной блокировки)",
+                    "type": "integer",
+                    "example": 1
+                }
+            }
+        },
         "internal_features_users_transport_http.GetUserResponse": {
             "type": "object",
             "properties": {
@@ -1100,14 +951,31 @@
                     "example": 1
                 }
             }
-        }
-    },
-    "securityDefinitions": {
-        "BearerAuth": {
-            "description": "JWT-токен. Формат: Bearer \u0026lt;token\u0026gt;. Токен выдаётся при регистрации (POST /auth/register).",
-            "type": "apiKey",
-            "name": "Authorization",
-            "in": "header"
+        },
+        "internal_features_users_transport_http.UserDTOResponse": {
+            "type": "object",
+            "properties": {
+                "full_name": {
+                    "description": "Полное имя",
+                    "type": "string",
+                    "example": "Иван Иванов"
+                },
+                "id": {
+                    "description": "Идентификатор пользователя",
+                    "type": "integer",
+                    "example": 1
+                },
+                "phone_number": {
+                    "description": "Телефон или null",
+                    "type": "string",
+                    "example": "+79991234567"
+                },
+                "version": {
+                    "description": "Версия записи (для оптимистичной блокировки)",
+                    "type": "integer",
+                    "example": 1
+                }
+            }
         }
     }
 }
