@@ -14,7 +14,7 @@ pgdata="${PROJECT_ROOT}/out/pgdata"
 
 read -r -p 'Очистить все volume-файлы окружения? Опасность потери данных! [y/N] ' ans
 if [[ "$ans" =~ ^[yY]$ ]]; then
-    docker compose down
+    docker compose --project-directory "$PROJECT_ROOT" down
     rm -rf "$pgdata"
     echo 'Файлы окружения успешно очищены!'
 else

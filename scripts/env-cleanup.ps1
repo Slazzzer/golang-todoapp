@@ -16,7 +16,7 @@ $pgdata = Join-Path $env:PROJECT_ROOT 'out/pgdata'
 
 $ans = Read-Host 'Очистить все volume-файлы окружения? Опасность потери данных! [y/N]'
 if ($ans -match '^[yY]') {
-    docker compose down
+    docker compose --project-directory $env:PROJECT_ROOT down
     if (Test-Path $pgdata) {
         Remove-Item -Recurse -Force $pgdata
     }

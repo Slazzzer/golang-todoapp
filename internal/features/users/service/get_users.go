@@ -12,16 +12,21 @@ func (s *UsersService) GetUsers(
 	ctx context.Context,
 	limit *int,
 	offset *int,
-) ([]domain.User, error) {
+) (core_pagination.Page[domain.User], error) {
 	resolvedLimit, resolvedOffset, err := core_pagination.Resolve(limit, offset)
 	if err != nil {
-		return nil, fmt.Errorf("resolve pagination: %w", err)
+		return core_pagination.Page[domain.User]{}, fmt.Errorf("resolve pagination: %w", err)
+	}
+
+	total, err := s.usersRepository.CountUsers(ctx)
+	if err != nil {
+		return core_pagination.Page[domain.User]{}, fmt.Errorf("count users: %w", err)
 	}
 
 	users, err := s.usersRepository.GetUsers(ctx, resolvedLimit, resolvedOffset)
 	if err != nil {
-		return nil, fmt.Errorf("get users from repository: %w", err)
+		return core_pagination.Page[domain.User]{}, fmt.Errorf("get users from repository: %w", err)
 	}
 
-	return users, nil
+	return core_pagination.NewPage(users, total, resolvedLimit, resolvedOffset), nil
 }

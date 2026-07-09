@@ -8,15 +8,13 @@ import (
 	core_http_response "github.com/Slazzzer/golang-todoapp/internal/core/transport/http/response"
 )
 
-// DeleteTask удаляет задачу (только свою).
+// DeleteTask удаляет задачу.
 //
 // @Summary      Удалить задачу
 // @Tags         tasks
-// @Security     BearerAuth
 // @Param        id path int true "ID задачи"
 // @Success      204 "Задача удалена"
-// @Failure      401 {object} map[string]string "Не авторизован"
-// @Failure      403 {object} map[string]string "Доступ к чужой задаче запрещён"
+// @Failure      404 {object} map[string]string "Задача не найдена"
 // @Router       /tasks/{id} [delete]
 func (h *TasksHTTPHandler) DeleteTask(rw http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()

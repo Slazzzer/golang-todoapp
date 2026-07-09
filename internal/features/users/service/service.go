@@ -20,6 +20,9 @@ type UsersRepository interface {
 		limit int,
 		offset int,
 	) ([]domain.User, error)
+	CountUsers(
+		ctx context.Context,
+	) (int, error)
 
 	GetUser(
 		ctx context.Context,

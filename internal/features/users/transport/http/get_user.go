@@ -10,17 +10,14 @@ import (
 
 type GetUserResponse UserDTOResponse
 
-// GetUser возвращает пользователя по id (только свой профиль).
+// GetUser возвращает пользователя по id.
 //
 // @Summary      Получить пользователя
-// @Description  Доступ только к своему id. Запрос чужого id вернёт 403.
+// @Description  Возвращает данные пользователя по его идентификатору.
 // @Tags         users
 // @Produce      json
-// @Security     BearerAuth
 // @Param        id path int true "ID пользователя"
 // @Success      200 {object} GetUserResponse "Данные пользователя"
-// @Failure      401 {object} map[string]string "Не авторизован"
-// @Failure      403 {object} map[string]string "Доступ к чужому профилю запрещён"
 // @Failure      404 {object} map[string]string "Пользователь не найден"
 // @Router       /users/{id} [get]
 func (h *UsersHTTPHandler) GetUser(rw http.ResponseWriter, r *http.Request) {

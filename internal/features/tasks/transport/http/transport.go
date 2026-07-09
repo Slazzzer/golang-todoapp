@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/Slazzzer/golang-todoapp/internal/core/domain"
+	core_pagination "github.com/Slazzzer/golang-todoapp/internal/core/pagination"
 	core_http_server "github.com/Slazzzer/golang-todoapp/internal/core/transport/http/server"
 )
 
@@ -19,9 +20,10 @@ type TasksService interface {
 	) (domain.Task, error)
 	GetTasks(
 		ctx context.Context,
+		userID *int,
 		limit *int,
 		offset *int,
-	) ([]domain.Task, error)
+	) (core_pagination.Page[domain.Task], error)
 	GetTask(
 		ctx context.Context,
 		taskID int,

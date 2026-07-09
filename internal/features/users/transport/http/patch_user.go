@@ -47,20 +47,18 @@ func (r *PatchUserRequest) Validate() error {
 
 type PatchUserResponse UserDTOResponse
 
-// PatchUser обновляет профиль текущего пользователя.
+// PatchUser обновляет профиль пользователя.
 //
 // @Summary      Изменить пользователя
-// @Description  Частичное обновление профиля. Доступ только к своему id.
+// @Description  Частичное обновление профиля пользователя.
 // @Tags         users
 // @Accept       json
 // @Produce      json
-// @Security     BearerAuth
 // @Param        id path int true "ID пользователя"
 // @Param        request body PatchUserRequest true "Поля для обновления"
 // @Success      200 {object} PatchUserResponse "Обновлённый профиль"
 // @Failure      400 {object} map[string]string "Невалидные данные"
-// @Failure      401 {object} map[string]string "Не авторизован"
-// @Failure      403 {object} map[string]string "Доступ к чужому профилю запрещён"
+// @Failure      404 {object} map[string]string "Пользователь не найден"
 // @Router       /users/{id} [patch]
 func (h *UsersHTTPHandler) PatchUser(rw http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()

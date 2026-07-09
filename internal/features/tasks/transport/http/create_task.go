@@ -11,24 +11,23 @@ import (
 
 // CreateTaskRequest тело запроса создания задачи.
 type CreateTaskRequest struct {
-	Title       string  `json:"title" validate:"required,min=1,max=100" example:"Купить молоко"` // Заголовок (1–100 символов)
-	Description *string `json:"description" validate:"omitempty,min=1,max=1000" example:"2 литра"` // Описание (опционально)
+	Title        string  `json:"title" validate:"required,min=1,max=100" example:"Купить молоко"`   // Заголовок (1–100 символов)
+	Description  *string `json:"description" validate:"omitempty,min=1,max=1000" example:"2 литра"` // Описание (опционально)
+	AuthorUserID int     `json:"author_user_id" validate:"required" example:"1"`                    // ID автора задачи
 }
 
 type CreateTaskResponse TaskDTOResponse
 
-// CreateTask создаёт задачу для текущего пользователя.
+// CreateTask создаёт задачу.
 //
 // @Summary      Создать задачу
-// @Description  author_user_id берётся из JWT автоматически, передавать в JSON не нужно.
+// @Description  Создаёт новую задачу с указанным автором (author_user_id).
 // @Tags         tasks
 // @Accept       json
 // @Produce      json
-// @Security     BearerAuth
 // @Param        request body CreateTaskRequest true "Данные новой задачи"
 // @Success      201 {object} CreateTaskResponse "Задача создана"
 // @Failure      400 {object} map[string]string "Невалидные данные"
-// @Failure      401 {object} map[string]string "Не авторизован"
 // @Router       /tasks [post]
 func (h *TasksHTTPHandler) CreateTask(rw http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
@@ -44,7 +43,7 @@ func (h *TasksHTTPHandler) CreateTask(rw http.ResponseWriter, r *http.Request) {
 	taskDomain := domain.NewTaskUninitialized(
 		request.Title,
 		request.Description,
-		0,
+		request.AuthorUserID,
 	)
 
 	taskDomain, err := h.tasksService.CreateTask(ctx, taskDomain)

@@ -10,7 +10,7 @@ type UserDTOResponse struct {
 	PhoneNumber *string `json:"phone_number" example:"+79991234567"` // Телефон или null
 }
 
-func UserDTOFromDomain(user domain.User) UserDTOResponse {
+func userDTOFromDomain(user domain.User) UserDTOResponse {
 	return UserDTOResponse{
 		ID:          user.ID,
 		Version:     user.Version,
@@ -19,6 +19,10 @@ func UserDTOFromDomain(user domain.User) UserDTOResponse {
 	}
 }
 
-func userDTOFromDomain(user domain.User) UserDTOResponse {
-	return UserDTOFromDomain(user)
+func userDTOFromDomains(users []domain.User) []UserDTOResponse {
+	usersDTO := make([]UserDTOResponse, len(users))
+	for i, user := range users {
+		usersDTO[i] = userDTOFromDomain(user)
+	}
+	return usersDTO
 }

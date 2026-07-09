@@ -9,35 +9,35 @@ import (
 	core_http_response "github.com/Slazzzer/golang-todoapp/internal/core/transport/http/response"
 )
 
-type GetTasksResponse []TaskDTOResponse
+type GetTasksResponse TasksPageResponse
 
-// GetTasks возвращает список задач текущего пользователя.
+// GetTasks возвращает список задач.
 //
 // @Summary      Список задач
-// @Description  Возвращает только задачи авторизованного пользователя. Поддерживает пагинацию limit/offset (по умолчанию limit=50, max=100).
+// @Description  Возвращает страницу задач с total/limit/offset. Можно отфильтровать по user_id (по умолчанию limit=50, max=100).
 // @Tags         tasks
 // @Produce      json
-// @Security     BearerAuth
+// @Param        user_id query int false "Фильтр по автору"
 // @Param        limit query int false "Размер страницы"
 // @Param        offset query int false "Смещение"
-// @Success      200 {array} TaskDTOResponse "Список задач"
-// @Failure      401 {object} map[string]string "Не авторизован"
+// @Success      200 {object} GetTasksResponse "Страница задач"
+// @Failure      400 {object} map[string]string "Невалидные параметры"
 // @Router       /tasks [get]
 func (h *TasksHTTPHandler) GetTasks(rw http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	log := core_logger.FromContext(ctx)
 	responseHandler := core_http_response.NewHTTPResponseHandler(log, rw)
 
-	limit, offset, err := getLimitOffsetQueryParams(r)
+	userID, limit, offset, err := getUserIDAndLimitOffsetQueryParams(r)
 	if err != nil {
 		responseHandler.ErrorResponse(
 			err,
-			"failed to get limit and offset query params",
+			"failed to get user id and limit offset query params",
 		)
 		return
 	}
 
-	tasksDomains, err := h.tasksService.GetTasks(ctx, limit, offset)
+	page, err := h.tasksService.GetTasks(ctx, userID, limit, offset)
 	if err != nil {
 		responseHandler.ErrorResponse(
 			err,
@@ -46,25 +46,31 @@ func (h *TasksHTTPHandler) GetTasks(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response := GetTasksResponse(taskDTOsFromDomains(tasksDomains))
+	response := GetTasksResponse(tasksPageFromDomains(page))
 	responseHandler.JSONResponse(response, http.StatusOK)
 }
 
-func getLimitOffsetQueryParams(r *http.Request) (*int, *int, error) {
+func getUserIDAndLimitOffsetQueryParams(r *http.Request) (*int, *int, *int, error) {
 	const (
+		queryParamUserID = "user_id"
 		queryParamLimit  = "limit"
 		queryParamOffset = "offset"
 	)
 
+	userID, err := core_http_request.GetIntQueryParam(r, queryParamUserID)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("failed to get user id query param: %w", err)
+	}
+
 	limit, err := core_http_request.GetIntQueryParam(r, queryParamLimit)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get limit query param: %w", err)
+		return nil, nil, nil, fmt.Errorf("failed to get limit query param: %w", err)
 	}
 
 	offset, err := core_http_request.GetIntQueryParam(r, queryParamOffset)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get offset query param: %w", err)
+		return nil, nil, nil, fmt.Errorf("failed to get offset query param: %w", err)
 	}
 
-	return limit, offset, nil
+	return userID, limit, offset, nil
 }

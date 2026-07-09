@@ -14,25 +14,6 @@ definitions:
       value:
         type: string
     type: object
-  github_com_Slazzzer_golang-todoapp_internal_features_users_transport_http.UserDTOResponse:
-    properties:
-      full_name:
-        description: Полное имя
-        example: Иван Иванов
-        type: string
-      id:
-        description: Идентификатор пользователя
-        example: 1
-        type: integer
-      phone_number:
-        description: Телефон или null
-        example: "+79991234567"
-        type: string
-      version:
-        description: Версия записи (для оптимистичной блокировки)
-        example: 1
-        type: integer
-    type: object
   internal_core_transport_http_probes.ProbeStatusResponse:
     properties:
       status:
@@ -40,39 +21,11 @@ definitions:
         example: ok
         type: string
     type: object
-  internal_features_auth_transport_http.RegisterRequest:
-    properties:
-      full_name:
-        description: Полное имя (3–100 символов)
-        example: Иван Иванов
-        maxLength: 100
-        minLength: 3
-        type: string
-      phone_number:
-        description: Телефон в формате +XXXXXXXXXXX (опционально)
-        example: "+79991234567"
-        maxLength: 15
-        minLength: 10
-        type: string
-    required:
-    - full_name
-    type: object
-  internal_features_auth_transport_http.RegisterResponse:
-    properties:
-      token:
-        description: JWT-токен для последующих запросов
-        example: eyJhbGciOiJIUzI1NiIs...
-        type: string
-      user:
-        allOf:
-        - $ref: '#/definitions/github_com_Slazzzer_golang-todoapp_internal_features_users_transport_http.UserDTOResponse'
-        description: Созданный пользователь
-    type: object
   internal_features_statistics_transport_http.GetStatisticsResponse:
     properties:
       task_completed_rate:
-        description: Доля завершённых (0–1) или null
-        example: 0.7
+        description: Процент завершённых (0–100) или null
+        example: 70
         type: number
       tasks_average_completion_time:
         description: Среднее время выполнения или null
@@ -89,6 +42,10 @@ definitions:
     type: object
   internal_features_tasks_transport_http.CreateTaskRequest:
     properties:
+      author_user_id:
+        description: ID автора задачи
+        example: 1
+        type: integer
       description:
         description: Описание (опционально)
         example: 2 литра
@@ -102,6 +59,7 @@ definitions:
         minLength: 1
         type: string
     required:
+    - author_user_id
     - title
     type: object
   internal_features_tasks_transport_http.CreateTaskResponse:
@@ -255,6 +213,42 @@ definitions:
         example: 1
         type: integer
     type: object
+  internal_features_users_transport_http.CreateUserRequest:
+    properties:
+      full_name:
+        description: Полное имя (3–100 символов)
+        example: Иван Иванов
+        maxLength: 100
+        minLength: 3
+        type: string
+      phone_number:
+        description: Телефон в формате +7... (опционально)
+        example: "+79991234567"
+        maxLength: 15
+        minLength: 10
+        type: string
+    required:
+    - full_name
+    type: object
+  internal_features_users_transport_http.CreateUserResponse:
+    properties:
+      full_name:
+        description: Полное имя
+        example: Иван Иванов
+        type: string
+      id:
+        description: Идентификатор пользователя
+        example: 1
+        type: integer
+      phone_number:
+        description: Телефон или null
+        example: "+79991234567"
+        type: string
+      version:
+        description: Версия записи (для оптимистичной блокировки)
+        example: 1
+        type: integer
+    type: object
   internal_features_users_transport_http.GetUserResponse:
     properties:
       full_name:
@@ -304,73 +298,34 @@ definitions:
         example: 1
         type: integer
     type: object
+  internal_features_users_transport_http.UserDTOResponse:
+    properties:
+      full_name:
+        description: Полное имя
+        example: Иван Иванов
+        type: string
+      id:
+        description: Идентификатор пользователя
+        example: 1
+        type: integer
+      phone_number:
+        description: Телефон или null
+        example: "+79991234567"
+        type: string
+      version:
+        description: Версия записи (для оптимистичной блокировки)
+        example: 1
+        type: integer
+    type: object
 host: localhost:5050
 info:
   contact: {}
   description: |-
-    REST API для todo-приложения с JWT-авторизацией.
-    Публичный маршрут: POST /auth/register. Все остальные эндпоинты /api/v1 требуют заголовок Authorization: Bearer &lt;token&gt;.
-    Пользователь видит и изменяет только свои данные (профиль, задачи, статистику).
+    REST API для todo-приложения (задачи, пользователи, статистика).
+    Открытый API без авторизации: все эндпоинты доступны под /api/v1.
   title: Todoapp API
   version: "1.0"
 paths:
-  /auth/me:
-    get:
-      description: Возвращает профиль пользователя из JWT-токена. Удобная альтернатива
-        GET /users/{id}, когда id неизвестен.
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Профиль текущего пользователя
-          schema:
-            $ref: '#/definitions/github_com_Slazzzer_golang-todoapp_internal_features_users_transport_http.UserDTOResponse'
-        "401":
-          description: Токен отсутствует или невалиден
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Текущий пользователь
-      tags:
-      - auth
-  /auth/register:
-    post:
-      consumes:
-      - application/json
-      description: Публичный эндпоинт. Создаёт пользователя и возвращает JWT-токен
-        (срок жизни задаётся JWT_TTL, по умолчанию 30 дней). Пароль не требуется.
-      parameters:
-      - description: Данные для регистрации
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/internal_features_auth_transport_http.RegisterRequest'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Пользователь создан, токен выдан
-          schema:
-            $ref: '#/definitions/internal_features_auth_transport_http.RegisterResponse'
-        "400":
-          description: Невалидные данные
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "429":
-          description: Превышен лимит регистраций с одного IP
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      summary: Регистрация пользователя
-      tags:
-      - auth
   /health:
     get:
       description: Возвращает ok, если HTTP-сервер запущен. Не требует авторизации.
@@ -403,10 +358,10 @@ paths:
       - probes
   /statistics:
     get:
-      description: Агрегированная статистика по задачам авторизованного пользователя.
-        Параметр user_id опционален и должен совпадать с id из JWT.
+      description: 'Агрегированная статистика по задачам. Параметр user_id опционален:
+        без него — по всем пользователям.'
       parameters:
-      - description: ID пользователя (должен совпадать с токеном)
+      - description: Фильтр по пользователю
         in: query
         name: user_id
         type: integer
@@ -431,28 +386,18 @@ paths:
             additionalProperties:
               type: string
             type: object
-        "401":
-          description: Не авторизован
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "403":
-          description: Запрос статистики другого пользователя запрещён
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - BearerAuth: []
       summary: Статистика
       tags:
       - statistics
   /tasks:
     get:
-      description: Возвращает только задачи авторизованного пользователя. Поддерживает
+      description: Возвращает задачи. Можно отфильтровать по user_id. Поддерживает
         пагинацию limit/offset (по умолчанию limit=50, max=100).
       parameters:
+      - description: Фильтр по автору
+        in: query
+        name: user_id
+        type: integer
       - description: Размер страницы
         in: query
         name: limit
@@ -470,22 +415,19 @@ paths:
             items:
               $ref: '#/definitions/internal_features_tasks_transport_http.TaskDTOResponse'
             type: array
-        "401":
-          description: Не авторизован
+        "400":
+          description: Невалидные параметры
           schema:
             additionalProperties:
               type: string
             type: object
-      security:
-      - BearerAuth: []
       summary: Список задач
       tags:
       - tasks
     post:
       consumes:
       - application/json
-      description: author_user_id берётся из JWT автоматически, передавать в JSON
-        не нужно.
+      description: Создаёт новую задачу с указанным автором (author_user_id).
       parameters:
       - description: Данные новой задачи
         in: body
@@ -506,14 +448,6 @@ paths:
             additionalProperties:
               type: string
             type: object
-        "401":
-          description: Не авторизован
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - BearerAuth: []
       summary: Создать задачу
       tags:
       - tasks
@@ -528,25 +462,17 @@ paths:
       responses:
         "204":
           description: Задача удалена
-        "401":
-          description: Не авторизован
+        "404":
+          description: Задача не найдена
           schema:
             additionalProperties:
               type: string
             type: object
-        "403":
-          description: Доступ к чужой задаче запрещён
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - BearerAuth: []
       summary: Удалить задачу
       tags:
       - tasks
     get:
-      description: Доступ только к своим задачам. Чужая задача — 403.
+      description: Возвращает задачу по её идентификатору.
       parameters:
       - description: ID задачи
         in: path
@@ -560,26 +486,12 @@ paths:
           description: Данные задачи
           schema:
             $ref: '#/definitions/internal_features_tasks_transport_http.GetTaskResponse'
-        "401":
-          description: Не авторизован
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "403":
-          description: Доступ к чужой задаче запрещён
-          schema:
-            additionalProperties:
-              type: string
-            type: object
         "404":
           description: Задача не найдена
           schema:
             additionalProperties:
               type: string
             type: object
-      security:
-      - BearerAuth: []
       summary: Получить задачу
       tags:
       - tasks
@@ -613,26 +525,76 @@ paths:
             additionalProperties:
               type: string
             type: object
-        "401":
-          description: Не авторизован
+        "404":
+          description: Задача не найдена
           schema:
             additionalProperties:
               type: string
             type: object
-        "403":
-          description: Доступ к чужой задаче запрещён
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - BearerAuth: []
       summary: Изменить задачу
       tags:
       - tasks
+  /users:
+    get:
+      description: Возвращает всех пользователей. Поддерживает пагинацию limit/offset
+        (по умолчанию limit=50, max=100).
+      parameters:
+      - description: Размер страницы
+        in: query
+        name: limit
+        type: integer
+      - description: Смещение
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Список пользователей
+          schema:
+            items:
+              $ref: '#/definitions/internal_features_users_transport_http.UserDTOResponse'
+            type: array
+        "400":
+          description: Невалидные параметры
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Список пользователей
+      tags:
+      - users
+    post:
+      consumes:
+      - application/json
+      description: Регистрирует нового пользователя. Телефон опционален.
+      parameters:
+      - description: Данные нового пользователя
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_features_users_transport_http.CreateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Пользователь создан
+          schema:
+            $ref: '#/definitions/internal_features_users_transport_http.CreateUserResponse'
+        "400":
+          description: Невалидные данные
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Создать пользователя
+      tags:
+      - users
   /users/{id}:
     delete:
-      description: Удаление своего аккаунта. Если есть связанные задачи, может вернуться
+      description: Удаляет пользователя по id. Если есть связанные задачи, может вернуться
         409.
       parameters:
       - description: ID пользователя
@@ -643,14 +605,8 @@ paths:
       responses:
         "204":
           description: Пользователь удалён
-        "401":
-          description: Не авторизован
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "403":
-          description: Доступ к чужому профилю запрещён
+        "404":
+          description: Пользователь не найден
           schema:
             additionalProperties:
               type: string
@@ -661,13 +617,11 @@ paths:
             additionalProperties:
               type: string
             type: object
-      security:
-      - BearerAuth: []
       summary: Удалить пользователя
       tags:
       - users
     get:
-      description: Доступ только к своему id. Запрос чужого id вернёт 403.
+      description: Возвращает данные пользователя по его идентификатору.
       parameters:
       - description: ID пользователя
         in: path
@@ -681,33 +635,19 @@ paths:
           description: Данные пользователя
           schema:
             $ref: '#/definitions/internal_features_users_transport_http.GetUserResponse'
-        "401":
-          description: Не авторизован
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "403":
-          description: Доступ к чужому профилю запрещён
-          schema:
-            additionalProperties:
-              type: string
-            type: object
         "404":
           description: Пользователь не найден
           schema:
             additionalProperties:
               type: string
             type: object
-      security:
-      - BearerAuth: []
       summary: Получить пользователя
       tags:
       - users
     patch:
       consumes:
       - application/json
-      description: Частичное обновление профиля. Доступ только к своему id.
+      description: Частичное обновление профиля пользователя.
       parameters:
       - description: ID пользователя
         in: path
@@ -733,28 +673,13 @@ paths:
             additionalProperties:
               type: string
             type: object
-        "401":
-          description: Не авторизован
+        "404":
+          description: Пользователь не найден
           schema:
             additionalProperties:
               type: string
             type: object
-        "403":
-          description: Доступ к чужому профилю запрещён
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - BearerAuth: []
       summary: Изменить пользователя
       tags:
       - users
-securityDefinitions:
-  BearerAuth:
-    description: 'JWT-токен. Формат: Bearer &lt;token&gt;. Токен выдаётся при регистрации
-      (POST /auth/register).'
-    in: header
-    name: Authorization
-    type: apiKey
 swagger: "2.0"

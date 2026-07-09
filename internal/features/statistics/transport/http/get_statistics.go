@@ -15,24 +15,21 @@ import (
 type GetStatisticsResponse struct {
 	TasksCreated               int      `json:"tasks_created" example:"10"`              // Создано задач за период
 	TasksCompleted             int      `json:"tasks_completed" example:"7"`             // Завершено задач за период
-	TaskCompletedRate          *float64 `json:"task_completed_rate" example:"0.7"`     // Доля завершённых (0–1) или null
+	TaskCompletedRate          *float64 `json:"task_completed_rate" example:"70"`     // Процент завершённых (0–100) или null
 	TasksAverageCompletionTime *string  `json:"tasks_average_completion_time" example:"24h30m15s"` // Среднее время выполнения или null
 }
 
-// GetStatistics возвращает статистику по задачам текущего пользователя.
+// GetStatistics возвращает статистику по задачам.
 //
 // @Summary      Статистика
-// @Description  Агрегированная статистика по задачам авторизованного пользователя. Параметр user_id опционален и должен совпадать с id из JWT.
+// @Description  Агрегированная статистика по задачам. Параметр user_id опционален: без него — по всем пользователям.
 // @Tags         statistics
 // @Produce      json
-// @Security     BearerAuth
-// @Param        user_id query int false "ID пользователя (должен совпадать с токеном)"
+// @Param        user_id query int false "Фильтр по пользователю"
 // @Param        from query string false "Начало периода (YYYY-MM-DD)"
 // @Param        to query string false "Конец периода (YYYY-MM-DD, не включая этот день)"
 // @Success      200 {object} GetStatisticsResponse "Статистика"
 // @Failure      400 {object} map[string]string "Невалидный период или параметры"
-// @Failure      401 {object} map[string]string "Не авторизован"
-// @Failure      403 {object} map[string]string "Запрос статистики другого пользователя запрещён"
 // @Router       /statistics [get]
 func (h *StatisticsHTTPHandler) GetStatistics(rw http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
