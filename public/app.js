@@ -8,6 +8,54 @@
  * ========================================================================= */
 const DEFAULT_API = 'http://localhost:5050';
 const API_STORE_KEY = 'todoapp_api_base';
+const ACTING_USER_KEY = 'todoapp_acting_user_id';
+const ADMIN_DISPLAY_NAME = 'AdminSlazer';
+const ACTING_ROLE_KEY = 'todoapp_acting_role';
+const ADMIN_SESSION_KEY = 'todoapp_admin_session';
+
+function isAdmin() {
+    return localStorage.getItem(ACTING_ROLE_KEY) === 'admin' && !!getAdminSession();
+}
+
+function getAdminSession() {
+    return localStorage.getItem(ADMIN_SESSION_KEY);
+}
+
+function setAdminSession(session) {
+    localStorage.setItem(ADMIN_SESSION_KEY, session);
+    localStorage.setItem(ACTING_ROLE_KEY, 'admin');
+    localStorage.removeItem(ACTING_USER_KEY);
+}
+
+function clearAdminSession() {
+    localStorage.removeItem(ADMIN_SESSION_KEY);
+    if (localStorage.getItem(ACTING_ROLE_KEY) === 'admin') {
+        localStorage.removeItem(ACTING_ROLE_KEY);
+    }
+}
+
+function clearActingSession() {
+    clearAdminSession();
+    clearActingUserId();
+    localStorage.removeItem(ACTING_ROLE_KEY);
+}
+
+function getActingUserId() {
+    const raw = localStorage.getItem(ACTING_USER_KEY);
+    if (!raw) return null;
+    const id = parseInt(raw, 10);
+    return Number.isFinite(id) && id > 0 ? id : null;
+}
+
+function setActingUserId(id) {
+    localStorage.setItem(ACTING_USER_KEY, String(id));
+    localStorage.setItem(ACTING_ROLE_KEY, 'user');
+    clearAdminSession();
+}
+
+function clearActingUserId() {
+    localStorage.removeItem(ACTING_USER_KEY);
+}
 
 function resolveApiBase() {
     const fromQuery = new URLSearchParams(location.search).get('api');
@@ -57,16 +105,25 @@ function humanizeError(text, status) {
     return clean.length > 140 ? clean.slice(0, 140) + '…' : clean;
 }
 
-async function request(method, path, body) {
-    const options = { method, headers: {} };
+async function request(method, path, body, options = {}) {
+    const headers = {};
+    if (!options.public) {
+        if (isAdmin()) {
+            headers['X-Admin-Session'] = getAdminSession();
+        } else {
+            const uid = getActingUserId();
+            if (uid) headers['X-User-ID'] = String(uid);
+        }
+    }
+    const reqOptions = { method, headers, cache: 'no-store' };
     if (body !== undefined) {
-        options.headers['Content-Type'] = 'application/json';
-        options.body = JSON.stringify(body);
+        reqOptions.headers['Content-Type'] = 'application/json';
+        reqOptions.body = JSON.stringify(body);
     }
 
     let response;
     try {
-        response = await fetch(`${apiV1()}${path}`, options);
+        response = await fetch(`${apiV1()}${path}`, reqOptions);
     } catch {
         throw new Error('Нет связи с сервером. Проверьте, что backend запущен на порту 5050.');
     }
@@ -75,7 +132,12 @@ async function request(method, path, body) {
 
     const text = await response.text();
     if (!response.ok) {
-        throw new Error(humanizeError(text, response.status));
+        let body = null;
+        try { body = JSON.parse(text); } catch { /* не JSON */ }
+        const error = new Error(humanizeError(text, response.status));
+        error.status = response.status;
+        error.code = body && body.code ? body.code : '';
+        throw error;
     }
 
     if (!text) return null;
@@ -84,6 +146,9 @@ async function request(method, path, body) {
 }
 
 const api = {
+    loginAdmin: (credentials) => request('POST', '/auth/login', credentials, { public: true }),
+    listUsersPublic: (params) => request('GET', `/users${query(params)}`, undefined, { public: true }),
+    createUserPublic: (u) => request('POST', '/users', u, { public: true }),
     listUsers: (params) => request('GET', `/users${query(params)}`),
     createUser: (u) => request('POST', '/users', u),
     patchUser: (id, u) => request('PATCH', `/users/${id}`, u),
@@ -212,15 +277,76 @@ const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
 
 const state = {
     users: [],
+    actingUser: null,
     editingUserId: null,
     editingTaskId: null,
     tasksPage: 1,
     usersPage: 1,
     taskPageSize: 20,
     userPageSize: 20,
+    identityRegisterMode: false,
+    identityAdminMode: false,
+    identityCanCancel: false,
 };
 
-async function loadUsersForSelects() {
+async function loadActingUser() {
+    if (isAdmin()) {
+        state.actingUser = null;
+        await loadUsersForAdminSelects();
+        updateRoleUI();
+        return null;
+    }
+
+    const id = getActingUserId();
+    if (!id) {
+        state.actingUser = null;
+        state.users = [];
+        return null;
+    }
+
+    const page = await api.listUsers({ limit: 1, offset: 0 });
+    const user = (page.items || [])[0] || null;
+    state.actingUser = user;
+    state.users = user ? [user] : [];
+    updateRoleUI();
+    return user;
+}
+
+function updateBrandBadge() {
+    const badge = $('#brandBadge');
+    if (!badge) return;
+    if (isAdmin()) {
+        badge.textContent = ADMIN_DISPLAY_NAME;
+        return;
+    }
+    badge.textContent = state.actingUser ? state.actingUser.full_name : '—';
+}
+
+function updateRoleUI() {
+    const roleValue = $('#navRoleValue');
+    const usersNavLabel = $('.nav-item[data-view="users"] span');
+    const usersTitle = $('#usersPageTitle');
+    const statFilterWrap = $('#statUserFilterWrap');
+    const newTaskBtn = $('#newTaskBtn');
+
+    if (isAdmin()) {
+        if (roleValue) roleValue.textContent = ADMIN_DISPLAY_NAME;
+        if (usersNavLabel) usersNavLabel.textContent = 'Пользователи';
+        if (usersTitle) usersTitle.textContent = 'Пользователи';
+        if (statFilterWrap) statFilterWrap.classList.remove('is-hidden');
+        if (newTaskBtn) newTaskBtn.classList.add('is-hidden');
+    } else {
+        if (roleValue) roleValue.textContent = 'Пользователь';
+        if (usersNavLabel) usersNavLabel.textContent = 'Мой профиль';
+        if (usersTitle) usersTitle.textContent = 'Мой профиль';
+        if (statFilterWrap) statFilterWrap.classList.add('is-hidden');
+        if (newTaskBtn) newTaskBtn.classList.remove('is-hidden');
+    }
+
+    updateBrandBadge();
+}
+
+async function loadUsersForAdminSelects() {
     const all = [];
     let offset = 0;
     const limit = 100;
@@ -228,21 +354,30 @@ async function loadUsersForSelects() {
     while (true) {
         const page = await api.listUsers({ limit, offset });
         const items = page.items || [];
+        if (!items.length) break;
         all.push(...items);
-        if (!items.length || all.length >= page.total) break;
+        const total = Number(page.total);
+        if (Number.isFinite(total) && total > 0 && all.length >= total) break;
         offset += items.length;
     }
 
     state.users = all;
+    const userOptions = all
+        .map((u) => `<option value="${u.id}" data-user-id="${u.id}">${escapeHtml(u.full_name)}</option>`)
+        .join('');
+    const statFilter = $('#statUserFilter');
+    if (statFilter) {
+        statFilter.innerHTML = `<option value="">Все пользователи</option>${userOptions}`;
+        refreshCustomSelect(statFilter);
+    }
     return all;
 }
 
 async function refreshUsersCatalog() {
-    await loadUsersForSelects();
-    fillUserSelects();
+    await loadActingUser();
 }
 
-function userById(id) { return state.users.find((u) => u.id === id); }
+function userById(id) { return state.users.find((u) => u.id === id) || (state.actingUser && state.actingUser.id === id ? state.actingUser : null); }
 
 function userFromOption(opt) {
     if (!opt || !opt.dataset.userId) return null;
@@ -260,23 +395,209 @@ function userOptionNode(u) {
     return node;
 }
 
-function fillUserSelects() {
-    const userOptions = state.users
-        .map((u) => `<option value="${u.id}" data-user-id="${u.id}">${escapeHtml(u.full_name)}</option>`)
-        .join('');
+/* =========================================================================
+ * Выбор пользователя (acting user)
+ * ========================================================================= */
+async function loadAllUsersPublic() {
+    const all = [];
+    let offset = 0;
+    const limit = 100;
 
-    const withAll = $('#taskUserFilter');
-    withAll.innerHTML = `<option value="">Все пользователи</option>${userOptions}`;
+    while (true) {
+        const page = await api.listUsersPublic({ limit, offset });
+        const items = page.items || [];
+        if (!items.length) break;
 
-    const statFilter = $('#statUserFilter');
-    statFilter.innerHTML = `<option value="">Все пользователи</option>${userOptions}`;
+        all.push(...items);
 
-    const author = $('#taskAuthor');
-    author.innerHTML = `<option value="">— выберите пользователя —</option>${userOptions}`;
+        const total = Number(page.total);
+        if (Number.isFinite(total) && total > 0 && all.length >= total) break;
 
-    refreshCustomSelect(withAll);
-    refreshCustomSelect(statFilter);
-    refreshCustomSelect(author);
+        offset += items.length;
+    }
+
+    return all;
+}
+
+function syncIdentityFooter() {
+    const inSubMode = state.identityRegisterMode || state.identityAdminMode;
+
+    $('#identityListActions').classList.toggle('is-hidden', inSubMode);
+    $('#identityBackBtn').classList.toggle('is-hidden', !inSubMode);
+    $('#identityCancelBtn').classList.toggle('is-hidden', inSubMode || !state.identityCanCancel);
+    $('#identityCloseBtn').classList.toggle('is-hidden', !inSubMode && !state.identityCanCancel);
+}
+
+function setIdentityRegisterMode(on) {
+    state.identityRegisterMode = on;
+    if (on) state.identityAdminMode = false;
+    $('#identityRegister').classList.toggle('is-hidden', !on);
+    $('#identityAdmin').classList.toggle('is-hidden', true);
+    $('#identityList').classList.toggle('is-hidden', on);
+    $('.identity-hint').classList.toggle('is-hidden', on);
+    $('#identitySubmitRegister').classList.toggle('is-hidden', !on);
+    $('#identitySubmitAdmin').classList.add('is-hidden');
+    hideError('identityFormError');
+    hideError('identityAdminError');
+    syncIdentityFooter();
+}
+
+function setIdentityAdminMode(on) {
+    state.identityAdminMode = on;
+    if (on) state.identityRegisterMode = false;
+    $('#identityAdmin').classList.toggle('is-hidden', !on);
+    $('#identityRegister').classList.toggle('is-hidden', true);
+    $('#identityList').classList.toggle('is-hidden', on);
+    $('.identity-hint').classList.toggle('is-hidden', on);
+    $('#identitySubmitAdmin').classList.toggle('is-hidden', !on);
+    $('#identitySubmitRegister').classList.add('is-hidden');
+    hideError('identityFormError');
+    hideError('identityAdminError');
+    syncIdentityFooter();
+}
+
+function backToIdentityList() {
+    setIdentityRegisterMode(false);
+    setIdentityAdminMode(false);
+    $('#identityFullName').value = '';
+    $('#identityPhone').value = '';
+    $('#identityAdminLogin').value = '';
+    $('#identityAdminPassword').value = '';
+    hideError('identityFormError');
+    hideError('identityAdminError');
+}
+
+async function renderIdentityList() {
+    const list = $('#identityList');
+    list.innerHTML = '';
+    list.appendChild(el('div', { class: 'empty', html: `${icon('i-clock', 'ic')}<p>Загрузка…</p>` }));
+
+    let users;
+    try {
+        users = await loadAllUsersPublic();
+    } catch (err) {
+        list.innerHTML = '';
+        list.appendChild(emptyState('i-users', 'Не удалось загрузить пользователей', err.message));
+        return;
+    }
+
+    list.innerHTML = '';
+    if (!users.length) {
+        list.appendChild(emptyState('i-users', 'Пользователей пока нет', 'Создайте первого пользователя'));
+        setIdentityRegisterMode(true);
+        return;
+    }
+
+    users.forEach((u) => {
+        const btn = el('button', { class: 'identity-item', type: 'button' });
+        btn.innerHTML = `
+            <span class="user-avatar" style="background:${avatarColor(u.id)}">${escapeHtml(initials(u.full_name))}</span>
+            <span class="identity-item-text">
+                <span class="identity-item-name">${escapeHtml(u.full_name)}</span>
+                <span class="identity-item-meta">ID ${u.id}${u.phone_number ? ` · ${escapeHtml(u.phone_number)}` : ''}</span>
+            </span>`;
+        btn.addEventListener('click', () => selectActingUser(u.id));
+        list.appendChild(btn);
+    });
+}
+
+function openIdentityModal({ canCancel = false } = {}) {
+    state.identityCanCancel = canCancel;
+    backToIdentityList();
+    $('#identityModal').classList.remove('is-hidden');
+    renderIdentityList();
+}
+
+function closeIdentityModal() {
+    const restoreFocus = state.identityCanCancel;
+    backToIdentityList();
+    state.identityCanCancel = false;
+    $('#identityModal').classList.add('is-hidden');
+    if (restoreFocus) {
+        const btn = $('#switchUserBtn');
+        if (btn) btn.focus({ preventScroll: true });
+    }
+}
+
+function handleIdentityDismiss() {
+    if (state.identityRegisterMode || state.identityAdminMode) {
+        backToIdentityList();
+        const focusTarget = $('#identityToggleRegister') || $('#identityList .identity-item');
+        if (focusTarget) focusTarget.focus({ preventScroll: true });
+        return;
+    }
+    if (state.identityCanCancel) closeIdentityModal();
+}
+
+async function selectActingUser(id, options = {}) {
+    setActingUserId(id);
+    closeIdentityModal();
+    try {
+        const user = await loadActingUser();
+        if (!options.silentWelcome && user) {
+            toastOk(`Добро пожаловать, ${user.full_name}`);
+        }
+        switchView('tasks');
+    } catch (err) {
+        clearActingSession();
+        toastErr('Не удалось войти', err.message);
+        openIdentityModal();
+    }
+}
+
+async function submitIdentityAdmin() {
+    const login = $('#identityAdminLogin').value.trim();
+    const password = $('#identityAdminPassword').value;
+    hideError('identityAdminError');
+
+    if (!login || !password) {
+        return showError('identityAdminError', 'Введите логин и пароль.');
+    }
+
+    const btn = $('#identitySubmitAdmin');
+    btn.disabled = true;
+    try {
+        const result = await api.loginAdmin({ login, password });
+        setAdminSession(result.session);
+        closeIdentityModal();
+        await loadActingUser();
+        toastOk(`Добро пожаловать, ${ADMIN_DISPLAY_NAME}`);
+        switchView('users');
+    } catch (err) {
+        showError('identityAdminError', err.message);
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+async function submitIdentityRegister() {
+    const fullName = $('#identityFullName').value.trim();
+    const phone = $('#identityPhone').value.trim();
+    hideError('identityFormError');
+
+    if (fullName.length < 3) return showError('identityFormError', 'Полное имя должно содержать минимум 3 символа.');
+    if (phone && !phone.startsWith('+')) return showError('identityFormError', 'Телефон должен начинаться с «+».');
+    if (phone && (phone.length < 10 || phone.length > 15)) {
+        return showError('identityFormError', 'Телефон должен быть от 10 до 15 символов.');
+    }
+
+    const btn = $('#identitySubmitRegister');
+    btn.disabled = true;
+    try {
+        const body = { full_name: fullName };
+        if (phone) body.phone_number = phone;
+        const created = await api.createUserPublic(body);
+        await selectActingUser(created.id, { silentWelcome: true });
+        toastOk(`Добро пожаловать, ${fullName}`);
+    } catch (err) {
+        showError('identityFormError', err.message);
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+function switchActingUser() {
+    openIdentityModal({ canCancel: true });
 }
 
 /* =========================================================================
@@ -346,6 +667,7 @@ function enhanceSelect(nativeSel) {
         const isOpen = wrap.classList.contains('is-open');
         closeAllCustomSelects();
         if (!isOpen) {
+            buildMenu();
             menu.classList.remove('is-hidden');
             wrap.classList.add('is-open');
         }
@@ -499,7 +821,6 @@ async function renderTasks() {
 
     const pageSize = state.taskPageSize;
     const params = {
-        user_id: $('#taskUserFilter').value || undefined,
         limit: pageSize,
         offset: (state.tasksPage - 1) * pageSize,
     };
@@ -647,27 +968,33 @@ async function renderUsers() {
     grid.innerHTML = '';
     if (!users.length) {
         setContentEmpty('userContentArea', true);
-        grid.appendChild(emptyState('i-users', 'Пользователей пока нет', 'Нажмите «Новый пользователь», чтобы добавить первого'));
+        grid.appendChild(emptyState('i-users', isAdmin() ? 'Пользователей пока нет' : 'Профиль не найден', isAdmin() ? 'Создайте первого пользователя через регистрацию' : 'Попробуйте сменить пользователя'));
     } else {
         setContentEmpty('userContentArea', false);
         users.forEach((u) => grid.appendChild(userCard(u)));
     }
 
-    renderPaginationBar(pagination, {
-        page: state.usersPage,
-        total,
-        pageSize,
-        selectId: 'userPageSize',
-        onPage: (p) => {
-            state.usersPage = p;
-            renderUsers();
-        },
-        onPageSize: (size) => {
-            state.userPageSize = size;
-            state.usersPage = 1;
-            renderUsers();
-        },
-    });
+    if (isAdmin() && total > pageSize) {
+        pagination.hidden = false;
+        renderPaginationBar(pagination, {
+            page: state.usersPage,
+            total,
+            pageSize,
+            selectId: 'userPageSize',
+            onPage: (p) => {
+                state.usersPage = p;
+                renderUsers();
+            },
+            onPageSize: (size) => {
+                state.userPageSize = size;
+                state.usersPage = 1;
+                renderUsers();
+            },
+        });
+    } else {
+        pagination.hidden = true;
+        pagination.classList.add('is-hidden');
+    }
 }
 
 function userCard(u) {
@@ -703,10 +1030,22 @@ async function removeUser(u) {
     try {
         await api.deleteUser(u.id);
         toastOk('Пользователь удалён');
+        if (u.id === getActingUserId()) {
+            clearActingUserId();
+            state.actingUser = null;
+            updateBrandBadge();
+            openIdentityModal();
+            return;
+        }
         await refreshUsersCatalog();
         renderUsers();
     } catch (err) {
-        toastErr('Не удалось удалить пользователя', err.message);
+        const hasTasks = err.status === 409 || err.code === 'conflict';
+        if (hasTasks) {
+            toastErr('Нельзя удалить пользователя', 'Сначала удалите его задачи');
+        } else {
+            toastErr('Не удалось удалить пользователя', err.message);
+        }
     }
 }
 
@@ -715,10 +1054,12 @@ async function removeUser(u) {
  * ========================================================================= */
 async function renderStats() {
     const params = {
-        user_id: $('#statUserFilter').value || undefined,
         from: $('#statFrom').value || undefined,
         to: $('#statTo').value || undefined,
     };
+    if (isAdmin()) {
+        params.user_id = $('#statUserFilter').value || undefined;
+    }
 
     let s;
     try {
@@ -795,8 +1136,6 @@ function showError(id, msg) {
 
 /* --- Задача --- */
 async function openTaskModal(task = null) {
-    try { await refreshUsersCatalog(); } catch { /* ignore */ }
-
     state.editingTaskId = task ? task.id : null;
     hideError('taskFormError');
 
@@ -805,18 +1144,6 @@ async function openTaskModal(task = null) {
     $('#taskTitle').value = task ? task.title : '';
     $('#taskDescription').value = task && task.description ? task.description : '';
 
-    const authorSel = $('#taskAuthor');
-    if (task) {
-        setSelectValue(authorSel, String(task.author_user_id));
-        authorSel.disabled = true;
-    } else {
-        authorSel.disabled = false;
-        setSelectValue(authorSel, '');
-    }
-    refreshCustomSelect(authorSel);
-    $('#taskAuthorField').classList.toggle('is-readonly', !!task);
-    $('#taskAuthorNote').classList.toggle('is-hidden', !task);
-
     openModal('taskModal');
     setTimeout(() => $('#taskTitle').focus(), 50);
 }
@@ -824,19 +1151,21 @@ async function openTaskModal(task = null) {
 async function submitTask() {
     const title = $('#taskTitle').value.trim();
     const description = $('#taskDescription').value.trim();
-    const authorRaw = $('#taskAuthor').value;
     hideError('taskFormError');
 
     if (!title) return showError('taskFormError', 'Заголовок обязателен.');
+
+    const actingId = getActingUserId();
+    if (!actingId) return showError('taskFormError', 'Сначала выберите пользователя.');
 
     const btn = $('#taskSubmit');
     btn.disabled = true;
     try {
         if (state.editingTaskId == null) {
-            if (!authorRaw) return showError('taskFormError', 'Выберите автора задачи.');
-            const body = { title, author_user_id: parseInt(authorRaw, 10) };
+            const body = { title, author_user_id: actingId };
             if (description) body.description = description;
             await api.createTask(body);
+            state.tasksPage = 1;
             toastOk('Задача создана');
         } else {
             const body = { title, description: description || null };
@@ -853,26 +1182,24 @@ async function submitTask() {
 }
 
 function closeTaskModal() {
-    const authorSel = $('#taskAuthor');
-    authorSel.disabled = false;
-    refreshCustomSelect(authorSel);
-    $('#taskAuthorField').classList.remove('is-readonly');
-    $('#taskAuthorNote').classList.add('is-hidden');
     state.editingTaskId = null;
     closeModal('taskModal');
 }
 
 /* --- Пользователь --- */
 function openUserModal(user = null) {
-    state.editingUserId = user ? user.id : null;
+    const profile = user || state.actingUser;
+    if (!profile) return;
+
+    state.editingUserId = profile.id;
     hideError('userFormError');
 
-    $('#userModalTitle').textContent = user ? 'Редактировать пользователя' : 'Новый пользователь';
-    $('#userSubmit').textContent = user ? 'Сохранить' : 'Создать';
-    $('#userFullName').value = user ? user.full_name : '';
-    $('#userPhone').value = user && user.phone_number ? user.phone_number : '';
+    $('#userModalTitle').textContent = 'Редактировать профиль';
+    $('#userSubmit').textContent = 'Сохранить';
+    $('#userFullName').value = profile.full_name;
+    $('#userPhone').value = profile.phone_number ? profile.phone_number : '';
     $('#userClearPhone').checked = false;
-    $('#userClearPhoneField').classList.toggle('is-hidden', !user);
+    $('#userClearPhoneField').classList.toggle('is-hidden', false);
 
     openModal('userModal');
     setTimeout(() => $('#userFullName').focus(), 50);
@@ -893,18 +1220,11 @@ async function submitUser() {
     const btn = $('#userSubmit');
     btn.disabled = true;
     try {
-        if (state.editingUserId == null) {
-            const body = { full_name: fullName };
-            if (phone) body.phone_number = phone;
-            await api.createUser(body);
-            toastOk('Пользователь создан');
-        } else {
-            const body = { full_name: fullName };
-            if (clearPhone) body.phone_number = null;
-            else if (phone) body.phone_number = phone;
-            await api.patchUser(state.editingUserId, body);
-            toastOk('Пользователь обновлён');
-        }
+        const body = { full_name: fullName };
+        if (clearPhone) body.phone_number = null;
+        else if (phone) body.phone_number = phone;
+        await api.patchUser(state.editingUserId, body);
+        toastOk('Профиль обновлён');
         closeModal('userModal');
         await refreshUsersCatalog();
         renderUsers();
@@ -975,70 +1295,123 @@ function playWelcomeCurtain() {
 }
 
 function startApp() {
-    applyTheme(localStorage.getItem(THEME_KEY) || 'light');
+    applyTheme(localStorage.getItem(THEME_KEY) || 'dark');
     updateApiLink();
     initCustomSelects();
     bindEvents();
+    updateRoleUI();
 
-    refreshUsersCatalog()
-        .catch((err) => toastErr('Нет связи с API', err.message))
-        .finally(() => switchView('tasks'));
+    if (!getActingUserId() && !isAdmin()) {
+        openIdentityModal();
+        return;
+    }
+
+    loadActingUser()
+        .catch((err) => {
+            clearActingSession();
+            toastErr('Сессия недействительна', err.message);
+            openIdentityModal();
+        })
+        .finally(() => switchView(isAdmin() ? 'users' : 'tasks'));
 }
 
 /* =========================================================================
  * Инициализация
  * ========================================================================= */
+function isModalOpen(id) {
+    const backdrop = $(`#${id}`);
+    return backdrop && !backdrop.classList.contains('is-hidden');
+}
+
+function isCustomSelectOpen() {
+    return $$('.cselect.is-open').length > 0;
+}
+
+function handleModalEnter(e) {
+    if (e.key !== 'Enter' || e.isComposing) return;
+    if (isCustomSelectOpen()) return;
+
+    const tag = e.target.tagName;
+    if (tag === 'BUTTON') return;
+
+    if (tag === 'TEXTAREA') {
+        if (e.shiftKey) return; // Shift+Enter — новая строка
+    }
+
+    if (isModalOpen('taskModal')) {
+        e.preventDefault();
+        submitTask();
+        return;
+    }
+
+    if (isModalOpen('userModal')) {
+        e.preventDefault();
+        submitUser();
+        return;
+    }
+
+    if (isModalOpen('identityModal') && state.identityAdminMode) {
+        e.preventDefault();
+        submitIdentityAdmin();
+        return;
+    }
+
+    if (isModalOpen('identityModal') && state.identityRegisterMode) {
+        e.preventDefault();
+        submitIdentityRegister();
+    }
+}
+
 function bindEvents() {
     $$('.nav-item').forEach((b) => b.addEventListener('click', () => switchView(b.dataset.view)));
 
     $('#themeToggle').addEventListener('click', toggleTheme);
+    $('#switchUserBtn').addEventListener('click', switchActingUser);
+    $('#identityToggleRegister').addEventListener('click', () => setIdentityRegisterMode(true));
+    $('#identityToggleAdmin').addEventListener('click', () => setIdentityAdminMode(true));
+    $('#identityBackBtn').addEventListener('click', backToIdentityList);
+    $('#identityCancelBtn').addEventListener('click', closeIdentityModal);
+    $('#identityCloseBtn').addEventListener('click', handleIdentityDismiss);
+    $('#identitySubmitRegister').addEventListener('click', submitIdentityRegister);
+    $('#identitySubmitAdmin').addEventListener('click', submitIdentityAdmin);
 
     // Задачи
     $('#newTaskBtn').addEventListener('click', () => openTaskModal(null));
     $('#taskSubmit').addEventListener('click', submitTask);
-    $('#taskUserFilter').addEventListener('change', () => {
-        state.tasksPage = 1;
-        renderTasks();
-    });
-    $('#taskReset').addEventListener('click', () => {
-        setSelectValue($('#taskUserFilter'), '');
-        state.tasksPage = 1;
-        state.taskPageSize = 20;
-        renderTasks();
-    });
 
-    // Пользователи
-    $('#newUserBtn').addEventListener('click', () => openUserModal(null));
+    // Профиль
     $('#userSubmit').addEventListener('click', submitUser);
 
     // Статистика
     $('#statApply').addEventListener('click', renderStats);
     $('#statReset').addEventListener('click', () => {
-        setSelectValue($('#statUserFilter'), '');
+        if (isAdmin()) setSelectValue($('#statUserFilter'), '');
         $('#statFrom').value = '';
         $('#statTo').value = '';
         renderStats();
     });
 
-    // Закрытие модалок
+    // Закрытие модалок — только по кнопке «Отмена»/крестику или Escape (не по клику на фон)
     $$('[data-close-modal]').forEach((b) =>
         b.addEventListener('click', () => {
             if (b.dataset.closeModal === 'taskModal') closeTaskModal();
             else closeModal(b.dataset.closeModal);
         }));
-    $$('.modal-backdrop').forEach((bd) =>
-        bd.addEventListener('click', (e) => {
-            if (e.target !== bd) return;
-            if (bd.id === 'taskModal') closeTaskModal();
-            else bd.classList.add('is-hidden');
-        }));
     document.addEventListener('keydown', (e) => {
-        if (e.key !== 'Escape') return;
-        $$('.modal-backdrop').forEach((bd) => {
-            if (bd.classList.contains('is-hidden')) return;
-            if (bd.id === 'taskModal') closeTaskModal();
-            else bd.classList.add('is-hidden');
-        });
+        if (e.key === 'Escape') {
+            if (isModalOpen('identityModal')) {
+                handleIdentityDismiss();
+                return;
+            }
+            $$('.modal-backdrop').forEach((bd) => {
+                if (bd.classList.contains('is-hidden')) return;
+                if (bd.id === 'taskModal') closeTaskModal();
+                else bd.classList.add('is-hidden');
+            });
+            return;
+        }
+
+        handleModalEnter(e);
     });
 }
 
