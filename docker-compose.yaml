@@ -26,6 +26,9 @@ services:
       - TIME_ZONE=${TIME_ZONE}
       - LOGGER_FOLDER=/app/out/logs
       - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:5050,http://127.0.0.1:5050,null,80.249.145.151,http://80.249.145.151:5050}
+      - ADMIN_LOGIN=${ADMIN_LOGIN}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+      - ADMIN_SESSION_TOKEN=${ADMIN_SESSION_TOKEN}
     volumes:
       - ${PROJECT_ROOT}/out/logs:/app/out/logs
     ports:
