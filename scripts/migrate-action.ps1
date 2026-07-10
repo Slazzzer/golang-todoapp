@@ -8,7 +8,7 @@ param (
 . "$PSScriptRoot/_common.ps1"
 
 if ([string]::IsNullOrWhiteSpace($action)) {
-    Write-Error "Отсутствует необходимый параметр action. Пример: make migrate-action action=up"
+    Write-Error 'Missing required parameter: action. Example: make migrate-action action=up'
     exit 1
 }
 

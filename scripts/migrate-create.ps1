@@ -8,7 +8,7 @@ param (
 . "$PSScriptRoot/_common.ps1"
 
 if ([string]::IsNullOrWhiteSpace($seq)) {
-    Write-Error "Отсутствует необходимый параметр seq. Пример: make migrate-create seq=init"
+    Write-Error 'Missing required parameter: seq. Example: make migrate-create seq=init'
     exit 1
 }
 

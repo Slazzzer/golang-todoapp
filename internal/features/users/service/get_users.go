@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/Slazzzer/golang-todoapp/internal/core/actinguser"
 	"github.com/Slazzzer/golang-todoapp/internal/core/domain"
 	core_pagination "github.com/Slazzzer/golang-todoapp/internal/core/pagination"
 )
@@ -13,6 +14,25 @@ func (s *UsersService) GetUsers(
 	limit *int,
 	offset *int,
 ) (core_pagination.Page[domain.User], error) {
+	if actingID, ok := actinguser.UserIDFromContext(ctx); ok {
+		user, err := s.usersRepository.GetUser(ctx, actingID)
+		if err != nil {
+			return core_pagination.Page[domain.User]{}, fmt.Errorf("get acting user: %w", err)
+		}
+
+		resolvedLimit, resolvedOffset, err := core_pagination.Resolve(limit, offset)
+		if err != nil {
+			return core_pagination.Page[domain.User]{}, fmt.Errorf("resolve pagination: %w", err)
+		}
+
+		return core_pagination.NewPage(
+			[]domain.User{user},
+			1,
+			resolvedLimit,
+			resolvedOffset,
+		), nil
+	}
+
 	resolvedLimit, resolvedOffset, err := core_pagination.Resolve(limit, offset)
 	if err != nil {
 		return core_pagination.Page[domain.User]{}, fmt.Errorf("resolve pagination: %w", err)

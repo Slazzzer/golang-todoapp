@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/Slazzzer/golang-todoapp/internal/core/actinguser"
 	"github.com/Slazzzer/golang-todoapp/internal/core/domain"
 )
 
@@ -15,6 +16,10 @@ func (s *TasksService) PatchTask(
 	task, err := s.tasksRepository.GetTask(ctx, taskID)
 	if err != nil {
 		return domain.Task{}, fmt.Errorf("failed to get task: %w", err)
+	}
+
+	if err := actinguser.EnsureSelf(ctx, task.AuthorUserID); err != nil {
+		return domain.Task{}, err
 	}
 
 	if err := task.ApplyPatch(patch); err != nil {

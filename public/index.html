@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ru" data-theme="light">
+<html lang="ru" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -51,7 +51,7 @@
             <div class="brand">
                 <div class="brand-logo"><svg class="ic"><use href="#i-tasks"/></svg></div>
                 <div class="brand-name">TodoApp</div>
-                <span class="brand-badge">admin</span>
+                <span class="brand-badge" id="brandBadge">—</span>
             </div>
 
             <nav class="nav">
@@ -60,14 +60,24 @@
                     <svg class="ic"><use href="#i-tasks"/></svg><span>Задачи</span>
                 </button>
                 <button class="nav-item" data-view="users">
-                    <svg class="ic"><use href="#i-users"/></svg><span>Пользователи</span>
+                    <svg class="ic"><use href="#i-users"/></svg><span>Мой профиль</span>
                 </button>
                 <button class="nav-item" data-view="stats">
                     <svg class="ic"><use href="#i-stats"/></svg><span>Статистика</span>
                 </button>
             </nav>
 
+            <div class="nav-role" id="navRole">
+                <span class="nav-role-label">Роль</span>
+                <span class="nav-role-value" id="navRoleValue">—</span>
+            </div>
+
             <div class="sidebar-footer">
+                <button class="btn btn-ghost btn-sm switch-user-btn" id="switchUserBtn" type="button">
+                    <svg class="ic"><use href="#i-user"/></svg>
+                    <span>Сменить пользователя</span>
+                </button>
+
                 <button class="theme-toggle" id="themeToggle" type="button">
                     <span class="theme-toggle-left">
                         <svg class="ic" id="themeIcon"><use href="#i-moon"/></svg>
@@ -94,16 +104,6 @@
                     </button>
                 </header>
 
-                <div class="toolbar">
-                    <div class="toolbar-fields toolbar-fields--2">
-                        <div class="field field--wide">
-                            <label>Пользователь</label>
-                            <select id="taskUserFilter"><option value="">Все пользователи</option></select>
-                        </div>
-                    </div>
-                    <button class="btn btn-ghost toolbar-btn" id="taskReset">Сбросить</button>
-                </div>
-
                 <div class="content-area" id="taskContentArea">
                     <div id="taskList" class="stack"></div>
                 </div>
@@ -113,23 +113,20 @@
             <!-- ПОЛЬЗОВАТЕЛИ -->
             <section class="view is-hidden" id="view-users">
                 <header class="page-head">
-                    <h1>Пользователи</h1>
-                    <button class="btn btn-primary" id="newUserBtn">
-                        <svg class="ic"><use href="#i-plus"/></svg> Новый пользователь
-                    </button>
+                    <h1 id="usersPageTitle">Мой профиль</h1>
                 </header>
 
                 <div class="content-area" id="userContentArea">
                     <div id="userGrid" class="user-grid"></div>
                 </div>
-                <nav class="pagination-bar is-hidden" id="userPagination" aria-label="Пагинация пользователей"></nav>
+                <nav class="pagination-bar is-hidden" id="userPagination" aria-label="Пагинация пользователей" hidden></nav>
             </section>
 
             <!-- СТАТИСТИКА -->
             <section class="view is-hidden" id="view-stats">
                 <div class="toolbar">
                     <div class="toolbar-fields toolbar-fields--stats">
-                        <div class="field field--wide">
+                        <div class="field field--wide is-hidden" id="statUserFilterWrap">
                             <label>Пользователь</label>
                             <select id="statUserFilter"><option value="">Все пользователи</option></select>
                         </div>
@@ -207,7 +204,7 @@
                     <label>Описание</label>
                     <textarea id="taskDescription" rows="4" placeholder="Необязательное описание..." maxlength="1000"></textarea>
                 </div>
-                <div class="form-field" id="taskAuthorField">
+                <div class="form-field is-hidden" id="taskAuthorField">
                     <label>Автор <span class="req">*</span></label>
                     <select id="taskAuthor"><option value="">— выберите пользователя —</option></select>
                     <span class="field-note is-hidden" id="taskAuthorNote">Автора задачи изменить нельзя</span>
@@ -250,8 +247,60 @@
         </div>
     </div>
 
+    <!-- Выбор пользователя (без пароля — «действую от имени») -->
+    <div class="modal-backdrop" id="identityModal">
+        <div class="modal modal--identity">
+            <div class="modal-head">
+                <h2>Кто вы?</h2>
+                <button class="icon-btn is-hidden" id="identityCloseBtn" type="button" title="Закрыть">
+                    <svg class="ic"><use href="#i-close"/></svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p class="identity-hint">Выберите себя из списка. Все действия в системе будут выполняться от вашего имени - чужие задачи и профили недоступны.</p>
+                <div class="identity-list" id="identityList"></div>
+                <div class="identity-register is-hidden" id="identityRegister">
+                    <div class="form-field">
+                        <label>Полное имя <span class="req">*</span></label>
+                        <input type="text" id="identityFullName" placeholder="Например, Иван Иванов" maxlength="100">
+                    </div>
+                    <div class="form-field">
+                        <label>Номер телефона</label>
+                        <input type="text" id="identityPhone" placeholder="например, +79998887766" maxlength="15">
+                    </div>
+                    <div class="form-error is-hidden" id="identityFormError"></div>
+                </div>
+                <div class="identity-admin is-hidden" id="identityAdmin">
+                    <div class="form-field">
+                        <label>Логин <span class="req">*</span></label>
+                        <input type="text" id="identityAdminLogin" placeholder="Введите логин" maxlength="50" autocomplete="username">
+                    </div>
+                    <div class="form-field">
+                        <label>Пароль <span class="req">*</span></label>
+                        <input type="password" id="identityAdminPassword" placeholder="Введите пароль" maxlength="100" autocomplete="current-password">
+                    </div>
+                    <div class="form-error is-hidden" id="identityAdminError"></div>
+                </div>
+            </div>
+            <div class="modal-foot identity-foot">
+                <div class="identity-foot-left">
+                    <div class="identity-list-actions" id="identityListActions">
+                        <button class="btn btn-ghost" id="identityToggleRegister" type="button">Создать нового</button>
+                        <button class="btn btn-ghost" id="identityToggleAdmin" type="button">Войти как администратор</button>
+                    </div>
+                    <button class="btn btn-ghost is-hidden" id="identityBackBtn" type="button">Назад к списку</button>
+                    <button class="btn btn-ghost is-hidden" id="identityCancelBtn" type="button">Отмена</button>
+                </div>
+                <div class="identity-foot-right">
+                    <button class="btn btn-primary is-hidden" id="identitySubmitRegister" type="button">Зарегистрировать</button>
+                    <button class="btn btn-primary is-hidden" id="identitySubmitAdmin" type="button">Войти</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="toasts" id="toasts"></div>
 
-    <script src="app.js?v=3"></script>
+    <script src="app.js"></script>
 </body>
 </html>
