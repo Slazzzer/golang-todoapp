@@ -9,7 +9,7 @@
 const DEFAULT_API = 'http://localhost:5050';
 const API_STORE_KEY = 'todoapp_api_base';
 const ACTING_USER_KEY = 'todoapp_acting_user_id';
-const ADMIN_DISPLAY_NAME = 'AdminSlazer';
+const ADMIN_DISPLAY_NAME = 'Admin';
 const ACTING_ROLE_KEY = 'todoapp_acting_role';
 const ADMIN_SESSION_KEY = 'todoapp_admin_session';
 
@@ -287,6 +287,7 @@ const state = {
     identityRegisterMode: false,
     identityAdminMode: false,
     identityCanCancel: false,
+    identityListLoadId: 0,
 };
 
 async function loadActingUser() {
@@ -409,9 +410,7 @@ async function loadAllUsersPublic() {
         if (!items.length) break;
 
         all.push(...items);
-
-        const total = Number(page.total);
-        if (Number.isFinite(total) && total > 0 && all.length >= total) break;
+        if (items.length < limit) break;
 
         offset += items.length;
     }
@@ -456,7 +455,7 @@ function setIdentityAdminMode(on) {
     syncIdentityFooter();
 }
 
-function backToIdentityList() {
+function backToIdentityList({ refreshList = false } = {}) {
     setIdentityRegisterMode(false);
     setIdentityAdminMode(false);
     $('#identityFullName').value = '';
@@ -465,9 +464,13 @@ function backToIdentityList() {
     $('#identityAdminPassword').value = '';
     hideError('identityFormError');
     hideError('identityAdminError');
+    if (refreshList && !$('#identityModal').classList.contains('is-hidden')) {
+        renderIdentityList();
+    }
 }
 
 async function renderIdentityList() {
+    const loadId = ++state.identityListLoadId;
     const list = $('#identityList');
     list.innerHTML = '';
     list.appendChild(el('div', { class: 'empty', html: `${icon('i-clock', 'ic')}<p>Загрузка…</p>` }));
@@ -476,10 +479,13 @@ async function renderIdentityList() {
     try {
         users = await loadAllUsersPublic();
     } catch (err) {
+        if (loadId !== state.identityListLoadId) return;
         list.innerHTML = '';
         list.appendChild(emptyState('i-users', 'Не удалось загрузить пользователей', err.message));
         return;
     }
+
+    if (loadId !== state.identityListLoadId) return;
 
     list.innerHTML = '';
     if (!users.length) {
@@ -521,7 +527,7 @@ function closeIdentityModal() {
 
 function handleIdentityDismiss() {
     if (state.identityRegisterMode || state.identityAdminMode) {
-        backToIdentityList();
+        backToIdentityList({ refreshList: true });
         const focusTarget = $('#identityToggleRegister') || $('#identityList .identity-item');
         if (focusTarget) focusTarget.focus({ preventScroll: true });
         return;
@@ -1369,7 +1375,7 @@ function bindEvents() {
     $('#switchUserBtn').addEventListener('click', switchActingUser);
     $('#identityToggleRegister').addEventListener('click', () => setIdentityRegisterMode(true));
     $('#identityToggleAdmin').addEventListener('click', () => setIdentityAdminMode(true));
-    $('#identityBackBtn').addEventListener('click', backToIdentityList);
+    $('#identityBackBtn').addEventListener('click', () => backToIdentityList({ refreshList: true }));
     $('#identityCancelBtn').addEventListener('click', closeIdentityModal);
     $('#identityCloseBtn').addEventListener('click', handleIdentityDismiss);
     $('#identitySubmitRegister').addEventListener('click', submitIdentityRegister);

@@ -28,13 +28,7 @@ func ActingUser(adminCfg adminauth.Config) Middleware {
 			}
 
 			if isPublicAPIRoute(r.Method, path) {
-				ctx := r.Context()
-				if adminCfg.ValidateSession(strings.TrimSpace(r.Header.Get(AdminSessionHeader))) {
-					ctx = actinguser.WithPrincipal(ctx, actinguser.Principal{IsAdmin: true})
-				} else if userID, ok := parseActingUserID(r.Header.Get(ActingUserHeader)); ok {
-					ctx = actinguser.WithContext(ctx, userID)
-				}
-				next.ServeHTTP(w, r.WithContext(ctx))
+				next.ServeHTTP(w, r)
 				return
 			}
 
